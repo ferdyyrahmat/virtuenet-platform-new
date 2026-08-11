@@ -23,49 +23,6 @@
                 <li class="d-none d-lg-block">
                     <h5 class="mb-0" id="topbar-greeting-text">{{ $greeting }}, {{ auth()->user()->name }}</h5>
                 </li>
-                @if(\App\Models\SystemSetting::getByKey('maintenance_mode', false))
-                <li class="ms-lg-3 topbar-maintenance-item">
-                    <span class="badge bg-danger-subtle text-danger border border-danger d-inline-flex align-items-center px-2 py-1 fs-12 fw-semibold topbar-maintenance-badge">
-                        <span class="spinner-grow spinner-grow-sm text-danger me-1" role="status" style="width: 8px; height: 8px; animation-duration: 1.2s;"></span>
-                        {{ __('messages.maintenance_active') }}
-                    </span>
-                </li>
-                
-                <style>
-                    @media (max-width: 991.98px) {
-                        .topbar-maintenance-item {
-                            position: fixed;
-                            top: 15px;
-                            left: 50%;
-                            transform: translateX(-50%);
-                            z-index: 1060;
-                            margin: 0 !important;
-                            pointer-events: none;
-                        }
-                        .topbar-maintenance-badge {
-                            box-shadow: 0 4px 10px rgba(239, 71, 111, 0.2);
-                            font-size: 11px !important;
-                            padding: 6px 12px !important;
-                            border-radius: 30px !important;
-                            background-color: rgba(239, 71, 111, 0.95) !important;
-                            color: #ffffff !important;
-                            border: 1px solid #ef476f !important;
-                            animation: pulse-fade 2s infinite ease-in-out;
-                        }
-                        .topbar-maintenance-badge .spinner-grow {
-                            color: #ffffff !important;
-                        }
-                    }
-                    @keyframes pulse-fade {
-                        0%, 100% {
-                            opacity: 0.15;
-                        }
-                        50% {
-                            opacity: 1;
-                        }
-                    }
-                </style>
-                @endif
             </ul>
 
             <ul class="list-unstyled topnav-menu mb-0 d-flex align-items-center">
@@ -178,7 +135,7 @@
                         <div class="dropdown-divider"></div>
 
                         <!-- item-->
-                        <a href="{{ url('/logout') }}" class="dropdown-item notify-item">
+                        <a href="{{ route('logout.get') }}" class="dropdown-item notify-item">
                             <i class="mdi mdi-location-exit fs-16 align-middle"></i>
                             <span>{{ __('messages.logout') }}</span>
                         </a>

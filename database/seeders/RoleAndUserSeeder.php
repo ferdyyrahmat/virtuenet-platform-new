@@ -40,8 +40,8 @@ class RoleAndUserSeeder extends Seeder
         );
 
         $adminGroups = ['users', 'tickets', 'feedbacks', 'audit-logs'];
-        $developerPermissionIds = [];
-        $adminPermissionIds = [];
+        $developerPermissionNames = [];
+        $adminPermissionNames = [];
 
         foreach (Route::getRoutes() as $route) {
             $routeName = $route->getName();
@@ -49,26 +49,18 @@ class RoleAndUserSeeder extends Seeder
                 continue;
             }
 
-            $parts = explode('.', $routeName);
-            $group = $parts[1] ?? 'system';
-            $permission = Permission::firstOrCreate(
-                ['route_name' => $routeName],
-                [
-                    'name' => ucwords(str_replace(['.', '-', '_'], ' ', $routeName)),
-                    'group_name' => $group,
-                    'guard_name' => 'web',
-                ]
-            );
+            $group = explode('.', $routeName)[1] ?? 'system';
+            Permission::findOrCreate($routeName, 'web');
 
-            $developerPermissionIds[] = $permission->id;
+            $developerPermissionNames[] = $routeName;
             if (in_array($group, $adminGroups, true)) {
-                $adminPermissionIds[] = $permission->id;
+                $adminPermissionNames[] = $routeName;
             }
         }
 
-        $developerRole->permissions()->sync($developerPermissionIds);
-        $adminRole->permissions()->sync($adminPermissionIds);
-        $userRole->permissions()->sync([]);
+        $developerRole->syncPermissions($developerPermissionNames);
+        $adminRole->syncPermissions($adminPermissionNames);
+        $userRole->syncPermissions([]);
 
         $developer = $this->user('Demo Developer', 'developer@example.com', $developerRole);
         $this->user('Demo Administrator', 'admin@example.com', $adminRole);
@@ -79,7 +71,6 @@ class RoleAndUserSeeder extends Seeder
             [
                 'name' => $developer->name,
                 'email' => $developer->email,
-                'notify_channels' => ['in_app'],
                 'is_active' => true,
             ]
         );
@@ -98,7 +89,7 @@ class RoleAndUserSeeder extends Seeder
             ]
         );
 
-        $user->roles()->sync([$role->id]);
+        $user->syncRoles([$role]);
         return $user;
     }
 }

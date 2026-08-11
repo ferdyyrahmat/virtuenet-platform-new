@@ -8,51 +8,6 @@
 <script src="assets/libs/feather-icons/feather.min.js"></script> --}}
 <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-<script>
-    window.PUSHER_CONFIG = {
-        enabled: {{ \App\Models\SystemSetting::getByKey('websocket_enabled', false) ? 'true' : 'false' }},
-        key: "{{ e(\App\Models\SystemSetting::getByKey('pusher_app_key', '')) }}",
-        cluster: "{{ e(\App\Models\SystemSetting::getByKey('pusher_app_cluster', 'ap1')) }}",
-        userId: {{ auth()->id() ?? 'null' }}
-    };
-
-    if (window.PUSHER_CONFIG.enabled && window.PUSHER_CONFIG.key && window.PUSHER_CONFIG.userId) {
-        try {
-            var globalPusher = new Pusher(window.PUSHER_CONFIG.key, {
-                cluster: window.PUSHER_CONFIG.cluster || 'ap1',
-                forceTLS: true
-            });
-
-            var userChannel = globalPusher.subscribe('user-' + window.PUSHER_CONFIG.userId);
-            userChannel.bind('notification-created', function(data) {
-                var badge = $('#bell-unread-count');
-                if (badge.length) {
-                    var current = parseInt(badge.text() || 0);
-                    badge.text(current + 1).removeClass('d-none');
-                }
-
-                if (typeof Swal !== 'undefined') {
-                    const Toast = Swal.mixin({
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 3500,
-                        timerProgressBar: true
-                    });
-                    Toast.fire({
-                        icon: 'info',
-                        title: data.title,
-                        text: data.message
-                    });
-                }
-            });
-        } catch (e) {
-            console.error("Global Pusher error:", e);
-        }
-    }
-</script>
-
 <script>
     $(document).ready(function() {
         $.ajaxSetup({

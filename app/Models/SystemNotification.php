@@ -45,24 +45,6 @@ class SystemNotification extends Model
             'is_read' => false,
         ]);
 
-        try {
-            app(\App\Services\PusherBroadcasterService::class)->broadcast(
-                "user-{$userId}",
-                "notification-created",
-                [
-                    'id'         => $notif->id,
-                    'title'      => $notif->title,
-                    'message'    => $notif->message,
-                    'type'       => $notif->type,
-                    'icon'       => $notif->icon,
-                    'url'        => $notif->url,
-                    'created_at' => $notif->created_at->diffForHumans(),
-                ]
-            );
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("Pusher Notification Broadcast Error: " . $e->getMessage());
-        }
-
         return $notif;
     }
 }

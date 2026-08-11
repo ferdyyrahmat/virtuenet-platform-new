@@ -29,39 +29,29 @@
         </div>
     @endif
 
-    <!-- Connection Status Banner & Action Buttons -->
+    <!-- Storage Status & Action Buttons -->
     <div class="row mb-3">
         <div class="col-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-body py-3 d-flex flex-wrap align-items-center justify-content-between g-2">
                     <div class="d-flex align-items-center me-3">
                         <div class="avatar-sm me-2">
-                            <span class="avatar-title bg-{{ $isMinioActive ? 'success' : 'warning' }}-subtle text-{{ $isMinioActive ? 'success' : 'warning' }} rounded-circle fs-20">
-                                <i class="mdi {{ $isMinioActive ? 'mdi-server-network' : 'mdi-folder-network-outline' }}"></i>
+                            <span class="avatar-title bg-info-subtle text-info rounded-circle fs-20">
+                                <i class="mdi mdi-folder-network-outline"></i>
                             </span>
                         </div>
                         <div>
-                            <h6 class="fw-bold text-dark mb-0 fs-14">
-                                {{ $isMinioActive ? 'MinIO S3 Cloud Storage Active' : 'Local Storage Directory (MinIO Off)' }}
-                            </h6>
-                            <small class="text-muted">
-                                {{ $isMinioActive ? 'Bucket: ' . $settings['bucket'] . ' (' . $settings['endpoint'] . ')' : 'Configure MinIO S3 credentials to connect object storage.' }}
-                            </small>
+                            <h6 class="fw-bold text-dark mb-0 fs-14">Laravel Filesystem Storage</h6>
+                            <small class="text-muted">Disk: {{ config('filesystems.default') }}</small>
                         </div>
                     </div>
-
                     <div class="d-flex gap-2">
-                        @if(auth()->user()->hasPermission('admin.directory.settings'))
-                            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modal-minio-settings">
-                                <i class="mdi mdi-cog-outline me-1"></i>{{ __('messages.minio_config') }}
-                            </button>
-                        @endif
-                        @if(auth()->user()->hasPermission('admin.directory.folder'))
+                        @if(auth()->user()->can('admin.directory.folder'))
                             <button type="button" class="btn btn-outline-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modal-new-folder">
                                 <i class="mdi mdi-folder-plus-outline me-1"></i>{{ __('messages.new_folder') }}
                             </button>
                         @endif
-                        @if(auth()->user()->hasPermission('admin.directory.upload'))
+                        @if(auth()->user()->can('admin.directory.upload'))
                             <button type="button" class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modal-upload-file">
                                 <i class="mdi mdi-upload me-1"></i>{{ __('messages.upload_file') }}
                             </button>
@@ -182,64 +172,6 @@
     @endif
 </div>
 
-<!-- Modal: MinIO Config -->
-<div class="modal fade" id="modal-minio-settings" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white py-3">
-                <h5 class="modal-title fw-bold text-white fs-15"><i class="mdi mdi-server-network me-1"></i>{{ __('messages.minio_config') }}</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ route('admin.directory.settings') }}" method="POST">
-                @csrf
-                <div class="modal-body">
-                    <div class="form-check form-switch mb-3 p-2 bg-light rounded border">
-                        <input class="form-check-input ms-0 me-2" type="checkbox" role="switch" name="minio_enabled" value="1" id="minio_enabled" {{ $settings['enabled'] ? 'checked' : '' }}>
-                        <label class="form-check-label fw-bold text-dark fs-13" for="minio_enabled">Enable MinIO Object Storage</label>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold fs-13">MinIO API Endpoint</label>
-                        <input type="text" class="form-control" name="minio_endpoint" value="{{ $settings['endpoint'] }}" required placeholder="e.g. http://127.0.0.1:9000">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold fs-13">Access Key ID</label>
-                        <input type="text" class="form-control" name="minio_key" value="{{ $settings['key'] }}" required placeholder="e.g. minioadmin">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold fs-13">Secret Access Key</label>
-                        <input type="password" class="form-control" name="minio_secret" value="{{ $settings['secret'] }}" placeholder="••••••••••••••••">
-                    </div>
-
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label fw-semibold fs-13">Bucket Name</label>
-                            <input type="text" class="form-control" name="minio_bucket" value="{{ $settings['bucket'] }}" required placeholder="silva-kit">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-semibold fs-13">Region</label>
-                            <input type="text" class="form-control" name="minio_region" value="{{ $settings['region'] }}" placeholder="us-east-1">
-                        </div>
-                    </div>
-
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="minio_use_path_style_endpoint" value="1" id="use_path_style" {{ $settings['use_path_style_endpoint'] ? 'checked' : '' }}>
-                        <label class="form-check-label fs-13 text-muted" for="use_path_style">
-                            Use Path-Style Endpoint (Required for MinIO)
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ __('messages.cancel') }}</button>
-                    <button type="submit" class="btn btn-primary fw-bold"><i class="mdi mdi-content-save-outline me-1"></i>{{ __('messages.save_settings') }}</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- Modal: New Folder -->
 <div class="modal fade" id="modal-new-folder" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -294,7 +226,6 @@
     </div>
 </div>
 @endsection
-
 @section('script-bottom')
 <script>
     function deleteItem(path, type) {

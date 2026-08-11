@@ -20,31 +20,17 @@
                             <p class="text-dark text-capitalize fs-14 mb-0">Sign in to continue to silve.</p>
                         </div>
 
-                        <div class="row g-2 mb-3">
-                            <div class="col-6">
-                                <a href="{{ route('oauth.redirect', 'google') }}" class="btn text-dark border fw-normal d-flex align-items-center justify-content-center py-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48" class="me-2">
-                                        <path fill="#ffc107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917" />
-                                        <path fill="#ff3d00" d="m6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691" />
-                                        <path fill="#4caf50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0 1 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44" />
-                                        <path fill="#1976d2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 0 1-4.087 5.571l.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917" />
-                                    </svg>
-                                    <span>Google</span>
-                                </a>
-                            </div>
-
-                            <div class="col-6">
-                                <a href="{{ route('oauth.redirect', 'github') }}" class="btn text-dark border fw-normal d-flex align-items-center justify-content-center py-2">
-                                    <i class="mdi mdi-github fs-20 text-dark me-2"></i>
-                                    <span>GitHub</span>
-                                </a>
-                            </div>
+                        <div class="d-grid mb-3">
+                            <a href="{{ route('lark.redirect') }}" class="btn text-dark border fw-normal d-flex align-items-center justify-content-center py-2">
+                                <i class="mdi mdi-account-key-outline fs-20 text-dark me-2"></i>
+                                <span>Continue with Lark</span>
+                            </a>
                         </div>
 
                         <div class="saprator my-4"><span>or continue with email</span></div>
 
                         <div class="pt-0">
-                            <form method="POST" action="{{ route('login.authenticate') }}" class="my-4">
+                            <form method="POST" action="{{ route('login.store') }}" class="my-4">
                                 
                                 @csrf
                                 @if (session('error'))
@@ -79,15 +65,13 @@
                                 <div class="form-group d-flex mb-3">
                                     <div class="col-sm-6">
                                         <div class="form-check">
-                                            <input type="checkbox" class="form-check-input" id="checkbox-signin" checked>
+                                            <input type="checkbox" class="form-check-input" id="checkbox-signin" name="remember" value="1" checked>
                                             <label class="form-check-label" for="checkbox-signin">Remember me</label>
                                         </div>
                                     </div>
-                                    @if(!\App\Models\SystemSetting::getByKey('maintenance_mode', false))
                                     <div class="col-sm-6 text-end">
                                         <a class='text-muted fs-14' href='{{ route('password.request') }}'>Forgot password?</a>
                                     </div>
-                                    @endif
                                 </div>
 
                                 <div class="form-group mb-0 row">
@@ -99,11 +83,9 @@
                                 </div>
                             </form>
 
-                            @if(!\App\Models\SystemSetting::getByKey('maintenance_mode', false))
                             <div class="text-center text-muted mb-4">
                                 <p class="mb-0">Don't have an account ?<a class='text-primary ms-2 fw-medium' href='{{ route('register') }}'>Sign up</a></p>
                             </div>
-                            @endif
 
                         </div>
                     </div>

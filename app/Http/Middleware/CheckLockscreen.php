@@ -19,7 +19,7 @@ class CheckLockscreen
         if (Auth::check() && session('user_is_locked') === true) {
             $routeName = $request->route() ? $request->route()->getName() : '';
 
-            $exceptRoutes = ['lockscreen', 'lockscreen.lock', 'lockscreen.unlock', 'logout', 'oauth.redirect', 'oauth.callback'];
+            $exceptRoutes = ['lockscreen', 'lockscreen.lock', 'lockscreen.unlock', 'logout', 'logout.get', 'lark.redirect', 'lark.callback'];
 
             if (!in_array($routeName, $exceptRoutes)) {
                 if ($request->ajax() || $request->wantsJson()) {

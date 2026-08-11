@@ -29,7 +29,7 @@
                 <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-3">
                     <div>
                         <h5 class="card-title mb-1 text-body fw-bold"><i class="mdi mdi-code-tags text-primary me-1"></i>Developer Roster & Alert Channels</h5>
-                        <p class="text-muted fs-13 mb-0">Register developers manually or link system users to receive ticket alerts via In-App, Email, WA, or Telegram.</p>
+                        <p class="text-muted fs-13 mb-0">Register developers manually or link system users to receive ticket alerts in-app.</p>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modal-add-developer">
                         <i class="mdi mdi-plus-circle-outline me-1"></i>Add New Developer
@@ -67,12 +67,6 @@
                                         </td>
                                         <td>
                                             <div><i class="mdi mdi-email-outline text-muted me-1"></i>{{ $dev->email }}</div>
-                                            @if($dev->phone)
-                                                <small class="text-muted"><i class="mdi mdi-whatsapp text-success me-1"></i>{{ $dev->phone }}</small>
-                                            @endif
-                                            @if($dev->telegram_chat_id)
-                                                <small class="text-muted ms-2"><i class="mdi mdi-telegram text-info me-1"></i>{{ $dev->telegram_chat_id }}</small>
-                                            @endif
                                         </td>
                                         <td>
                                             @if($dev->user)
@@ -83,21 +77,7 @@
                                                 <span class="badge bg-secondary-subtle text-muted">External / Manual</span>
                                             @endif
                                         </td>
-                                        <td>
-                                            @php $channels = $dev->notify_channels ?? []; @endphp
-                                            @if(in_array('in_app', $channels))
-                                                <span class="badge bg-primary me-1" title="In-App Bell"><i class="mdi mdi-bell-outline"></i> In-App</span>
-                                            @endif
-                                            @if(in_array('email', $channels))
-                                                <span class="badge bg-danger me-1" title="Email"><i class="mdi mdi-email-outline"></i> Email</span>
-                                            @endif
-                                            @if(in_array('whatsapp', $channels))
-                                                <span class="badge bg-success me-1" title="WhatsApp"><i class="mdi mdi-whatsapp"></i> WA</span>
-                                            @endif
-                                            @if(in_array('telegram', $channels))
-                                                <span class="badge bg-info me-1" title="Telegram"><i class="mdi mdi-telegram"></i> Telegram</span>
-                                            @endif
-                                        </td>
+                                        <td><span class="badge bg-primary-subtle text-primary"><i class="mdi mdi-bell-outline"></i> In-App</span></td>
                                         <td>
                                             @if($dev->is_active)
                                                 <span class="badge bg-success-subtle text-success fw-bold text-uppercase"><i class="mdi mdi-check-circle me-1"></i>Active</span>
@@ -112,10 +92,7 @@
                                                 data-id="{{ $dev->id }}"
                                                 data-name="{{ e($dev->name) }}"
                                                 data-email="{{ e($dev->email) }}"
-                                                data-phone="{{ e($dev->phone) }}"
-                                                data-telegram="{{ e($dev->telegram_chat_id) }}"
                                                 data-userid="{{ $dev->user_id }}"
-                                                data-channels="{{ json_encode($channels) }}"
                                                 data-active="{{ $dev->is_active ? 1 : 0 }}">
                                                 <i class="mdi mdi-pencil-outline me-1"></i>Edit
                                             </button>
@@ -158,7 +135,7 @@
                         <select class="form-select" name="user_id" id="add-dev-user-select">
                             <option value="">-- Manual External Developer --</option>
                             @foreach($users as $u)
-                                <option value="{{ $u->id }}" data-name="{{ $u->name }}" data-email="{{ $u->email }}" data-phone="{{ $u->phone }}">{{ $u->name }} ({{ $u->email }})</option>
+                                <option value="{{ $u->id }}" data-name="{{ $u->name }}" data-email="{{ $u->email }}">{{ $u->name }} ({{ $u->email }})</option>
                             @endforeach
                         </select>
                     </div>
@@ -169,33 +146,6 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold fs-13">Email Address (For Alerts)</label>
                         <input type="email" class="form-control" name="email" id="add-dev-email" required placeholder="alex@dev.com">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold fs-13">WhatsApp Phone Number</label>
-                        <input type="text" class="form-control" name="phone" id="add-dev-phone" placeholder="e.g. 628123456789">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold fs-13">Telegram Chat ID</label>
-                        <input type="text" class="form-control" name="telegram_chat_id" placeholder="e.g. 123456789">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold fs-13 d-block">Notification Alert Channels</label>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="checkbox" name="notify_channels[]" value="in_app" id="ch-inapp" checked>
-                            <label class="form-check-label fs-13" for="ch-inapp">🔔 In-App Bell</label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="checkbox" name="notify_channels[]" value="email" id="ch-email" checked>
-                            <label class="form-check-label fs-13" for="ch-email">📧 Email</label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="checkbox" name="notify_channels[]" value="whatsapp" id="ch-wa" checked>
-                            <label class="form-check-label fs-13" for="ch-wa">💬 WhatsApp</label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="checkbox" name="notify_channels[]" value="telegram" id="ch-tg">
-                            <label class="form-check-label fs-13" for="ch-tg">✈️ Telegram</label>
-                        </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
@@ -237,38 +187,11 @@
                         <input type="email" class="form-control" name="email" id="edit-dev-email" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold fs-13">WhatsApp Phone Number</label>
-                        <input type="text" class="form-control" name="phone" id="edit-dev-phone">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold fs-13">Telegram Chat ID</label>
-                        <input type="text" class="form-control" name="telegram_chat_id" id="edit-dev-telegram">
-                    </div>
-                    <div class="mb-3">
                         <label class="form-label fw-semibold fs-13">Status</label>
                         <select class="form-select" name="is_active" id="edit-dev-active">
                             <option value="1">Active</option>
                             <option value="0">Inactive</option>
                         </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold fs-13 d-block">Notification Alert Channels</label>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input edit-ch" type="checkbox" name="notify_channels[]" value="in_app" id="ech-inapp">
-                            <label class="form-check-label fs-13" for="ech-inapp">🔔 In-App Bell</label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input edit-ch" type="checkbox" name="notify_channels[]" value="email" id="ech-email">
-                            <label class="form-check-label fs-13" for="ech-email">📧 Email</label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input edit-ch" type="checkbox" name="notify_channels[]" value="whatsapp" id="ech-wa">
-                            <label class="form-check-label fs-13" for="ech-wa">💬 WhatsApp</label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input edit-ch" type="checkbox" name="notify_channels[]" value="telegram" id="ech-tg">
-                            <label class="form-check-label fs-13" for="ech-tg">✈️ Telegram</label>
-                        </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
@@ -291,7 +214,6 @@
                 if (opt && opt.value) {
                     document.getElementById('add-dev-name').value = opt.getAttribute('data-name') || '';
                     document.getElementById('add-dev-email').value = opt.getAttribute('data-email') || '';
-                    document.getElementById('add-dev-phone').value = opt.getAttribute('data-phone') || '';
                 }
             });
         }
@@ -305,24 +227,13 @@
                 var id = btn.getAttribute('data-id');
                 var name = btn.getAttribute('data-name');
                 var email = btn.getAttribute('data-email');
-                var phone = btn.getAttribute('data-phone');
-                var telegram = btn.getAttribute('data-telegram');
                 var userId = btn.getAttribute('data-userid');
                 var active = btn.getAttribute('data-active');
-                var channels = JSON.parse(btn.getAttribute('data-channels') || '[]');
-
                 document.getElementById('edit-dev-id-title').textContent = id;
                 document.getElementById('edit-dev-user-select').value = userId || '';
                 document.getElementById('edit-dev-name').value = name || '';
                 document.getElementById('edit-dev-email').value = email || '';
-                document.getElementById('edit-dev-phone').value = phone || '';
-                document.getElementById('edit-dev-telegram').value = telegram || '';
                 document.getElementById('edit-dev-active').value = active || '1';
-
-                document.querySelectorAll('.edit-ch').forEach(function(cb) {
-                    cb.checked = channels.includes(cb.value);
-                });
-
                 document.getElementById('form-edit-dev').action = '{{ url("admin/tickets/developers") }}/' + id;
             });
         }

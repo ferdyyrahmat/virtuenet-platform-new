@@ -19,7 +19,9 @@ class ProfileController extends Controller
             return $role->permissions;
         })->unique('id');
 
-        $groupedPermissions = $permissions->groupBy('group_name');
+        $groupedPermissions = $permissions->groupBy(
+            fn ($permission): string => str($permission->name)->beforeLast('.')->toString()
+        );
 
         $notifications = \App\Models\SystemNotification::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')

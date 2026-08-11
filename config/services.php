@@ -35,16 +35,17 @@ return [
         ],
     ],
 
-    'google' => [
-        'client_id' => env('GOOGLE_CLIENT_ID', 'demo-google-client-id'),
-        'client_secret' => env('GOOGLE_CLIENT_SECRET', 'demo-google-client-secret'),
-        'redirect' => env('GOOGLE_REDIRECT_URI', 'http://localhost:8000/auth/google/callback'),
-    ],
-
-    'github' => [
-        'client_id' => env('GITHUB_CLIENT_ID', 'demo-github-client-id'),
-        'client_secret' => env('GITHUB_CLIENT_SECRET', 'demo-github-client-secret'),
-        'redirect' => env('GITHUB_REDIRECT_URI', 'http://localhost:8000/auth/github/callback'),
+    'lark' => [
+        'app_id' => env('LARK_APP_ID'),
+        'app_secret' => env('LARK_APP_SECRET'),
+        'redirect_uri' => env('LARK_REDIRECT_URI'),
+        'open_api_url' => env('LARK_OPEN_API_URL', 'https://open.larksuite.com'),
+        'accounts_url' => env('LARK_ACCOUNTS_URL', 'https://accounts.larksuite.com'),
+        'scope' => env('LARK_OAUTH_SCOPE', 'auth:user.id:read contact:user.email:readonly'),
+        'verification_token' => env('LARK_VERIFICATION_TOKEN'),
+        'encrypt_key' => env('LARK_ENCRYPT_KEY'),
+        'bot_name' => env('LARK_BOT_NAME'),
+        'default_group_prefix' => env('LARK_DEFAULT_GROUP_PREFIX'),
     ],
 
 ];

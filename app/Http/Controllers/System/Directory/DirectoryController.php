@@ -3,26 +3,16 @@
 namespace App\Http\Controllers\System\Directory;
 
 use App\Http\Controllers\Controller;
-use App\Services\MinioService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class DirectoryController extends Controller
 {
-    protected MinioService $minioService;
-
-    public function __construct(MinioService $minioService)
-    {
-        $this->minioService = $minioService;
-    }
-
     public function index(Request $request)
     {
-        $settings = $this->minioService->getSettings();
-        $disk = $this->minioService->getDisk();
+        $disk = Storage::disk(config('filesystems.default'));
 
         $currentPath = trim($request->input('path', ''), '/');
-        $isMinioActive = $settings['enabled'] && !empty($settings['key']);
-
         $rawDirectories = [];
         $rawFiles = [];
         $errorMsg = null;
@@ -31,7 +21,7 @@ class DirectoryController extends Controller
             $rawDirectories = $disk->directories($currentPath);
             $rawFiles = $disk->files($currentPath);
         } catch (\Throwable $e) {
-            $errorMsg = "Unable to fetch MinIO directory list: " . $e->getMessage();
+            $errorMsg = 'Unable to fetch the storage directory.';
         }
 
         // Format subdirectories
@@ -86,8 +76,6 @@ class DirectoryController extends Controller
         }
 
         return view('admin.directory.index', compact(
-            'settings',
-            'isMinioActive',
             'directories',
             'files',
             'currentPath',
@@ -103,7 +91,7 @@ class DirectoryController extends Controller
             'path' => 'nullable|string',
         ]);
 
-        $disk = $this->minioService->getDisk();
+        $disk = Storage::disk(config('filesystems.default'));
         $targetPath = trim($request->input('path', ''), '/');
         $file = $request->file('file');
         $fileName = $file->getClientOriginalName();
@@ -127,7 +115,7 @@ class DirectoryController extends Controller
             'path'        => 'nullable|string',
         ]);
 
-        $disk = $this->minioService->getDisk();
+        $disk = Storage::disk(config('filesystems.default'));
         $targetPath = trim($request->input('path', ''), '/');
         $folderName = trim($request->input('folder_name'), '/');
 
@@ -147,7 +135,7 @@ class DirectoryController extends Controller
     {
         $request->validate(['path' => 'required|string']);
         $path = $request->input('path');
-        $disk = $this->minioService->getDisk();
+        $disk = Storage::disk(config('filesystems.default'));
 
         if (!$disk->exists($path)) {
             abort(404, 'File not found on storage.');
@@ -166,7 +154,7 @@ class DirectoryController extends Controller
 
         $path = $request->input('path');
         $type = $request->input('type');
-        $disk = $this->minioService->getDisk();
+        $disk = Storage::disk(config('filesystems.default'));
 
         if ($type === 'folder') {
             $disk->deleteDirectory($path);
@@ -181,24 +169,6 @@ class DirectoryController extends Controller
             'success'  => true,
             'message'  => ucfirst($type) . " deleted successfully.",
             'redirect' => route('admin.directory.index', ['path' => $parentPath])
-        ]);
-    }
-
-    public function saveSettings(Request $request)
-    {
-        $request->validate([
-            'minio_endpoint' => 'required|string',
-            'minio_key'      => 'required|string',
-            'minio_bucket'   => 'required|string',
-        ]);
-
-        $this->minioService->saveSettings($request->all());
-        audit_log("Updated MinIO Cloud Storage credentials", 'update', 'settings');
-
-        return response()->json([
-            'success'  => true,
-            'message'  => 'MinIO Cloud Storage settings saved successfully!',
-            'redirect' => route('admin.directory.index')
         ]);
     }
 

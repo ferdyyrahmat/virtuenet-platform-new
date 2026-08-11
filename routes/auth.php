@@ -18,14 +18,6 @@ Route::post('/registering', [RegisteredUserController::class, 'store'])
     ->middleware('guest')
     ->name('register.store');
 
-Route::get('/login', [AuthenticatedSessionController::class, 'create'])
-    ->middleware('guest')
-    ->name('login');
-
-Route::post('/login/authenticate', [AuthenticatedSessionController::class, 'store'])
-    ->middleware('guest')
-    ->name('login.authenticate');
-
 Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])
     ->middleware('guest')
     ->name('password.request');
@@ -75,18 +67,12 @@ Route::post('/lockscreen/unlock', [\App\Http\Controllers\Auth\LockscreenControll
 
 Route::get('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
-    ->name('logout');
+    ->name('logout.get');
 
-// Socialite OAuth Login Routes
-Route::get('/auth/{provider}/redirect', [\App\Http\Controllers\Auth\SocialiteController::class, 'redirectToProvider'])
-    ->name('oauth.redirect');
+Route::get('/auth/lark/redirect', [\App\Http\Controllers\Auth\LarkSsoController::class, 'redirect'])
+    ->middleware('guest')
+    ->name('lark.redirect');
 
-Route::get('/auth/{provider}/callback', [\App\Http\Controllers\Auth\SocialiteController::class, 'handleProviderCallback'])
-    ->name('oauth.callback');
-
-// 2FA Login Challenge Routes
-Route::get('/two-factor-challenge', [\App\Http\Controllers\Auth\TwoFactorController::class, 'showChallenge'])
-    ->name('two-factor.challenge');
-
-Route::post('/two-factor-challenge/verify', [\App\Http\Controllers\Auth\TwoFactorController::class, 'verifyChallenge'])
-    ->name('two-factor.challenge.verify');
+Route::get('/auth/lark/callback', [\App\Http\Controllers\Auth\LarkSsoController::class, 'callback'])
+    ->middleware('guest')
+    ->name('lark.callback');

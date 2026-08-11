@@ -2,17 +2,16 @@
 
 namespace App\Http\Controllers\Dashboard;
 
-use App\Services\SystemHealthService;
-use App\Models\AuditLog;
 use App\Models\Developer;
 use App\Models\Ticket;
 use App\Models\User;
+use Spatie\Activitylog\Models\Activity;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends BaseController
 {
-    public function index(SystemHealthService $healthService)
+    public function index()
     {
         $user = Auth::user();
 
@@ -24,7 +23,6 @@ class DashboardController extends BaseController
 
             return view('dashboard.developer', [
                 'user' => $user,
-                'healthMetrics' => $healthService->getHealthMetrics(),
                 'stats' => [
                     'open' => (clone $tickets)->where('status', 'open')->count(),
                     'in_progress' => (clone $tickets)->where('status', 'in_progress')->count(),
@@ -38,14 +36,13 @@ class DashboardController extends BaseController
         if ($user->isAdmin()) {
             return view('dashboard.admin', [
                 'user' => $user,
-                'healthMetrics' => $healthService->getHealthMetrics(),
                 'stats' => [
                     'users' => User::count(),
                     'tickets' => Ticket::count(),
                     'open_tickets' => Ticket::whereIn('status', ['open', 'in_progress', 'waiting_user'])->count(),
                     'resolved_tickets' => Ticket::whereIn('status', ['resolved', 'closed'])->count(),
                 ],
-                'recentAuditLogs' => AuditLog::with('user')->latest()->take(6)->get(),
+                'recentAuditLogs' => Activity::with('causer')->latest()->take(6)->get(),
                 'recentTickets' => Ticket::with('assignedDeveloper')->latest()->take(6)->get(),
             ]);
         }

@@ -13,14 +13,10 @@ class Developer extends Model
         'user_id',
         'name',
         'email',
-        'phone',
-        'telegram_chat_id',
-        'notify_channels',
         'is_active',
     ];
 
     protected $casts = [
-        'notify_channels' => 'array',
         'is_active' => 'boolean',
     ];
 

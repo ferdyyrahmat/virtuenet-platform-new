@@ -5,26 +5,21 @@
         <!--- Sidemenu -->
         <div id="sidebar-menu">
 
-@php
-    $logoLight = \App\Models\SystemSetting::getByKey('app_logo_light', '/images/logo-light.png');
-    $logoDark = \App\Models\SystemSetting::getByKey('app_logo_dark', '/images/logo-dark.png');
-    $logoSm = \App\Models\SystemSetting::getByKey('app_logo_sm', '/images/logo-sm.png');
-@endphp
             <div class="logo-box">
                 <a href="{{ route('root')}}" class="logo logo-light">
                     <span class="logo-sm">
-                        <img src="{{ $logoSm }}" alt="" height="22">
+                        <img src="/images/logo-sm.png" alt="" height="22">
                     </span>
                     <span class="logo-lg">
-                        <img src="{{ $logoLight }}" alt="" height="24">
+                        <img src="/images/logo-light.png" alt="" height="24">
                     </span>
                 </a>
                 <a href="{{ route('root')}}" class="logo logo-dark">
                     <span class="logo-sm">
-                        <img src="{{ $logoSm }}" alt="" height="22">
+                        <img src="/images/logo-sm.png" alt="" height="22">
                     </span>
                     <span class="logo-lg">
-                        <img src="{{ $logoDark }}" alt="" height="24">
+                        <img src="/images/logo-dark.png" alt="" height="24">
                     </span>
                 </a>
             </div>

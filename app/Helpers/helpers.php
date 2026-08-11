@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\AuditLog;
 use App\Models\SystemNotification;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -15,12 +14,17 @@ if (!function_exists('audit_log')) {
      * @param string $module Nama modul (default: 'system')
      * @param array|null $properties Metadata tambahan (opsional)
      * @param User|null $user Pelaku (default: Auth::user())
-     * @return AuditLog
+     * @return \Spatie\Activitylog\Models\Activity
      */
-    function audit_log(string $description, ?string $event = null, string $module = 'system', ?array $properties = null, ?User $user = null): AuditLog
+    function audit_log(string $description, ?string $event = null, string $module = 'system', ?array $properties = null, ?User $user = null): \Spatie\Activitylog\Models\Activity
     {
-        $detectedEvent = $event ?? 'activity';
-        return AuditLog::log($detectedEvent, $description, $module, $properties, $user);
+        $logger = activity($module)->event($event ?? 'activity');
+
+        if ($user) {
+            $logger->causedBy($user);
+        }
+
+        return $logger->withProperties($properties ?? [])->log($description);
     }
 }
 

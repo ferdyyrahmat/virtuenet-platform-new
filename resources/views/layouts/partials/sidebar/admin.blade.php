@@ -1,41 +1,21 @@
 @php
-    /**
-     * Dynamic Sidebar Permission Gate
-     * --------------------------------
-     * Load all permitted route_names for the current user ONCE,
-     * then check visibility of each menu item in O(1) via Collection::contains().
-     * Developer role bypasses everything (isDeveloper = true → all menus visible).
-     */
+    /** Load the package-managed permission names once for menu visibility. */
     $user = auth()->user();
     $isDeveloper = $user && $user->isDeveloper();
 
-    if ($isDeveloper) {
-        $allowedRoutes = collect(['*']);
-    } else {
-        $allowedRoutes = $user
-            ? $user->roles()
-                ->with('permissions:id,route_name')
-                ->get()
-                ->pluck('permissions')
-                ->flatten()
-                ->pluck('route_name')
-                ->unique()
-            : collect([]);
-    }
+    $allowedPermissions = $user?->getAllPermissions()->pluck('name')->flip() ?? collect();
 
-    $canAccess = function(string $routeName) use ($isDeveloper, $allowedRoutes) {
+    $canAccess = function(string $permission) use ($isDeveloper, $allowedPermissions) {
         if ($isDeveloper) return true;
-        return $allowedRoutes->contains($routeName);
+        return $allowedPermissions->has($permission);
     };
 
     // Group visibility checks
     $showAccessControl = $canAccess('admin.permissions.index') || $canAccess('admin.users.index');
-    $showOperations    = $canAccess('admin.maintenance.index') || $canAccess('admin.backups.index') || $canAccess('admin.queues.index') || $canAccess('admin.audit-logs.index');
+    $showOperations = $canAccess('admin.audit-logs.index') || $user?->isAdmin();
     $showCommunication = $canAccess('admin.tickets.index') || $canAccess('admin.notifications.index');
-    $showInfrastructure = $canAccess('admin.settings.websocket.index') || $canAccess('admin.directory.index');
-    $showSettings      = $canAccess('admin.settings.branding.index');
-
-    $hasAnyAdminAccess = $showAccessControl || $showOperations || $showCommunication || $showInfrastructure || $showSettings;
+    $showInfrastructure = $canAccess('admin.directory.index') || $user?->isAdmin();
+    $hasAnyAdminAccess = $showAccessControl || $showOperations || $showCommunication || $showInfrastructure;
 
     // Active route detection for auto-expanding the correct submenu
     $currentRoute = request()->route() ? request()->route()->getName() : '';
@@ -46,12 +26,6 @@
 @endif
 
 @if($isDeveloper)
-<li>
-    <a href="{{ route('admin.database.index') }}" class="tp-link">
-        <i data-feather="database"></i>
-        <span> Database Management </span>
-    </a>
-</li>
 @endif
 
 {{-- ═══════════════════════════════════════════════════ --}}
@@ -82,35 +56,25 @@
 @endif
 
 {{-- ═══════════════════════════════════════════════════ --}}
-{{-- OPERATIONS: Maintenance, Backups, Queues, Audit Trail --}}
+{{-- OPERATIONS: Horizon, Pulse, Audit Trail --}}
 {{-- ═══════════════════════════════════════════════════ --}}
 @if($showOperations)
 <li>
-    <a href="#sidebarOperations" data-bs-toggle="collapse" aria-expanded="{{ Str::startsWith($currentRoute, 'admin.maintenance.') || Str::startsWith($currentRoute, 'admin.backups.') || Str::startsWith($currentRoute, 'admin.queues.') || Str::startsWith($currentRoute, 'admin.audit-logs.') ? 'true' : 'false' }}" aria-controls="sidebarOperations">
+    <a href="#sidebarOperations" data-bs-toggle="collapse" aria-expanded="{{ Str::startsWith($currentRoute, 'admin.audit-logs.') ? 'true' : 'false' }}" aria-controls="sidebarOperations">
         <i data-feather="server"></i>
         <span> {{ __('messages.operations') }} </span>
         <span class="menu-arrow"></span>
     </a>
-    <div class="collapse {{ Str::startsWith($currentRoute, 'admin.maintenance.') || Str::startsWith($currentRoute, 'admin.backups.') || Str::startsWith($currentRoute, 'admin.queues.') || Str::startsWith($currentRoute, 'admin.audit-logs.') ? 'show' : '' }}" id="sidebarOperations">
+    <div class="collapse {{ Str::startsWith($currentRoute, 'admin.audit-logs.') ? 'show' : '' }}" id="sidebarOperations">
         <ul class="nav-second-level">
-            @if($canAccess('admin.maintenance.index'))
+            @if($user?->isAdmin())
             <li>
-                <a href="{{ route('admin.maintenance.index') }}" class="tp-link">{{ __('messages.maintenance') }}</a>
+                <a href="{{ url('/horizon') }}" class="tp-link"><i data-feather="activity"></i><span>Horizon</span></a>
             </li>
-            @endif
-            @if($canAccess('admin.backups.index'))
-            <li>
-                <a href="{{ route('admin.backups.index') }}" class="tp-link">{{ __('messages.backups') }}</a>
-            </li>
-            @endif
-            @if($canAccess('admin.queues.index'))
-            <li>
-                <a href="{{ route('admin.queues.index') }}" class="tp-link">{{ __('messages.queues_redis') }}</a>
-            </li>
+            <li><a href="{{ url('/pulse') }}" class="tp-link"><i data-feather="activity"></i><span>Pulse</span></a></li>
             @endif
             @if($canAccess('admin.audit-logs.index'))
-            <li>
-                <a href="{{ route('admin.audit-logs.index') }}" class="tp-link">{{ __('messages.audit_trail') }}</a>
+            <li><a href="{{ route('admin.audit-logs.index') }}" class="tp-link">{{ __('messages.audit_trail') }}</a>
             </li>
             @endif
         </ul>
@@ -146,22 +110,17 @@
 @endif
 
 {{-- ═══════════════════════════════════════════════════ --}}
-{{-- INFRASTRUCTURE: WebSocket & Pusher, Cloud Directory --}}
+{{-- INFRASTRUCTURE: Laravel Filesystem Directory --}}
 {{-- ═══════════════════════════════════════════════════ --}}
 @if($showInfrastructure)
 <li>
-    <a href="#sidebarInfrastructure" data-bs-toggle="collapse" aria-expanded="{{ Str::startsWith($currentRoute, 'admin.settings.websocket.') || Str::startsWith($currentRoute, 'admin.directory.') ? 'true' : 'false' }}" aria-controls="sidebarInfrastructure">
+    <a href="#sidebarInfrastructure" data-bs-toggle="collapse" aria-expanded="{{ Str::startsWith($currentRoute, 'admin.directory.') ? 'true' : 'false' }}" aria-controls="sidebarInfrastructure">
         <i data-feather="hard-drive"></i>
         <span> {{ __('messages.infrastructure') }} </span>
         <span class="menu-arrow"></span>
     </a>
-    <div class="collapse {{ Str::startsWith($currentRoute, 'admin.settings.websocket.') || Str::startsWith($currentRoute, 'admin.directory.') ? 'show' : '' }}" id="sidebarInfrastructure">
+    <div class="collapse {{ Str::startsWith($currentRoute, 'admin.directory.') ? 'show' : '' }}" id="sidebarInfrastructure">
         <ul class="nav-second-level">
-            @if($canAccess('admin.settings.websocket.index'))
-            <li>
-                <a href="{{ route('admin.settings.websocket.index') }}" class="tp-link">{{ __('messages.websocket_pusher') }}</a>
-            </li>
-            @endif
             @if($canAccess('admin.directory.index'))
             <li>
                 <a href="{{ route('admin.directory.index') }}" class="tp-link">{{ __('messages.cloud_directory') }}</a>
@@ -173,27 +132,20 @@
 @endif
 
 {{-- ═══════════════════════════════════════════════════ --}}
-{{-- SETTINGS: App Branding, API Documentation --}}
+{{-- SETTINGS: API Documentation --}}
 {{-- ═══════════════════════════════════════════════════ --}}
-@if($showSettings || $hasAnyAdminAccess)
+@if($hasAnyAdminAccess)
 <li>
-    <a href="#sidebarSettings" data-bs-toggle="collapse" aria-expanded="{{ Str::startsWith($currentRoute, 'admin.settings.branding.') ? 'true' : 'false' }}" aria-controls="sidebarSettings">
+    <a href="#sidebarSettings" data-bs-toggle="collapse" aria-expanded="false" aria-controls="sidebarSettings">
         <i data-feather="settings"></i>
         <span> {{ __('messages.settings') }} </span>
         <span class="menu-arrow"></span>
     </a>
-    <div class="collapse {{ Str::startsWith($currentRoute, 'admin.settings.branding.') ? 'show' : '' }}" id="sidebarSettings">
+    <div class="collapse" id="sidebarSettings">
         <ul class="nav-second-level">
-            @if($canAccess('admin.settings.branding.index'))
-            <li>
-                <a href="{{ route('admin.settings.branding.index') }}" class="tp-link">{{ __('messages.app_branding') }}</a>
-            </li>
-            @endif
-            @if($hasAnyAdminAccess)
             <li>
                 <a href="{{ url('/api/documentation') }}" target="_blank" class="tp-link">{{ __('messages.api_docs') }}</a>
             </li>
-            @endif
         </ul>
     </div>
 </li>

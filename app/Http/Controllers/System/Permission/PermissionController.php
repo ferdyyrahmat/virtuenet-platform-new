@@ -31,7 +31,7 @@ class PermissionController extends Controller
                     return e($row->description ?? '-');
                 })
                 ->editColumn('permissions_count', function ($row) {
-                    return '<span class="badge bg-light text-info fs-12">' . $row->permissions_count . ' Routes</span>';
+                    return '<span class="badge bg-light text-info fs-12">' . $row->permissions_count . ' Permissions</span>';
                 })
                 ->editColumn('users_count', function ($row) {
                     return '<span class="badge bg-light text-success fs-12">' . $row->users_count . ' Users</span>';
@@ -79,9 +79,9 @@ class PermissionController extends Controller
 
     public function create()
     {
-        $groupedRoutes = $this->getGroupedRoutes();
+        $groupedPermissions = $this->getGroupedPermissions();
         $users = $this->visibleUsers();
-        return view('admin.permissions.create', compact('groupedRoutes', 'users'));
+        return view('admin.permissions.create', compact('groupedPermissions', 'users'));
     }
 
     public function store(Request $request)
@@ -100,31 +100,13 @@ class PermissionController extends Controller
             'guard_name' => 'web'
         ]);
 
-        if ($request->has('permissions')) {
-            $permissionIds = [];
-            foreach ($request->permissions as $routeName) {
-                $parts = explode('.', $routeName);
-                array_pop($parts);
-                $group = implode('.', $parts);
-
-                $permission = Permission::firstOrCreate(
-                    ['route_name' => $routeName],
-                    [
-                        'name' => Str::title(str_replace(['.', '-', '_'], ' ', $routeName)),
-                        'group_name' => $group,
-                        'guard_name' => 'web'
-                    ]
-                );
-                $permissionIds[] = $permission->id;
-            }
-            $role->permissions()->sync($permissionIds);
-        }
+        $role->syncPermissions($this->permissionsFromInput($request->input('permissions', [])));
 
         if ($request->has('users')) {
             $role->users()->sync($request->users);
         }
 
-        \App\Models\AuditLog::log('role.create', "Created role '{$role->name}'", 'role');
+        audit_log("Created role '{$role->name}'", 'role.create', 'role');
 
         // Notify assigned users
         foreach ($role->users as $u) {
@@ -149,12 +131,12 @@ class PermissionController extends Controller
     {
         $role = Role::with('users')->findOrFail($id);
         $this->ensureRoleVisible($role);
-        $rolePermissions = $role->permissions->pluck('route_name')->toArray();
+        $rolePermissions = $role->permissions->pluck('name')->toArray();
         $roleUserIds = $role->users->pluck('id')->toArray();
-        $groupedRoutes = $this->getGroupedRoutes();
+        $groupedPermissions = $this->getGroupedPermissions();
         $users = $this->visibleUsers();
 
-        return view('admin.permissions.edit', compact('role', 'rolePermissions', 'roleUserIds', 'groupedRoutes', 'users'));
+        return view('admin.permissions.edit', compact('role', 'rolePermissions', 'roleUserIds', 'groupedPermissions', 'users'));
     }
 
     public function update(Request $request, $id)
@@ -175,30 +157,12 @@ class PermissionController extends Controller
             'description' => $request->description,
         ]);
 
-        $permissionIds = [];
-        if ($request->has('permissions')) {
-            foreach ($request->permissions as $routeName) {
-                $parts = explode('.', $routeName);
-                array_pop($parts);
-                $group = implode('.', $parts);
-
-                $permission = Permission::firstOrCreate(
-                    ['route_name' => $routeName],
-                    [
-                        'name' => Str::title(str_replace(['.', '-', '_'], ' ', $routeName)),
-                        'group_name' => $group,
-                        'guard_name' => 'web'
-                    ]
-                );
-                $permissionIds[] = $permission->id;
-            }
-        }
-        $role->permissions()->sync($permissionIds);
+        $role->syncPermissions($this->permissionsFromInput($request->input('permissions', [])));
 
         $role->users()->sync($request->users ?? []);
         $role->load('users');
 
-        \App\Models\AuditLog::log('role.update', "Updated role '{$role->name}' permissions/users", 'role');
+        audit_log("Updated role '{$role->name}' permissions/users", 'role.update', 'role');
 
         // Notify all users in this role
         foreach ($role->users as $u) {
@@ -227,7 +191,7 @@ class PermissionController extends Controller
         $roleName = $role->name;
         $role->delete();
 
-        \App\Models\AuditLog::log('role.delete', "Deleted role '{$roleName}'", 'role');
+        audit_log("Deleted role '{$roleName}'", 'role.delete', 'role');
 
         return response()->json([
             'success'  => true,
@@ -251,19 +215,14 @@ class PermissionController extends Controller
         ]);
     }
 
-    private function getGroupedRoutes()
+    private function getGroupedPermissions()
     {
         $routes = Route::getRoutes();
-        $groupedRoutes = [];
+        $groupedPermissions = [];
 
         foreach ($routes as $route) {
             $name = $route->getName();
-            if ($name && (Str::startsWith($name, 'admin.') || Str::startsWith($name, 'v1.'))) {
-                // Skip profile and dashboard routes which are accessible to all users
-                if (Str::startsWith($name, 'v1.profile.') || $name === 'v1.dashboard') {
-                    continue;
-                }
-
+            if ($name && Str::startsWith($name, 'admin.')) {
                 $parts = explode('.', $name);
                 
                 if (count($parts) >= 3) {
@@ -276,7 +235,7 @@ class PermissionController extends Controller
                     continue;
                 }
 
-                $groupedRoutes[$group][] = [
+                $groupedPermissions[$group][] = [
                     'name' => $name,
                     'suffix' => $suffix,
                     'uri' => $route->uri(),
@@ -284,8 +243,21 @@ class PermissionController extends Controller
                 ];
             }
         }
-        ksort($groupedRoutes);
-        return $groupedRoutes;
+        ksort($groupedPermissions);
+        return $groupedPermissions;
+    }
+
+    private function permissionsFromInput(array $names): array
+    {
+        $available = collect($this->getGroupedPermissions())
+            ->flatten(1)
+            ->pluck('name');
+
+        return collect($names)
+            ->filter(fn ($name): bool => is_string($name) && $available->contains($name))
+            ->unique()
+            ->map(fn (string $name) => Permission::findOrCreate($name, 'web'))
+            ->all();
     }
 
     private function ensureRoleVisible(Role $role): void

@@ -30,19 +30,6 @@
                             <button type="button" class="btn-close" onclick="$('#lockscreen-alert').addClass('d-none');" aria-label="Close"></button>
                         </div>
 
-                        @if(auth()->user()->provider_name)
-                            <div class="mb-3">
-                                <a href="{{ route('oauth.redirect', auth()->user()->provider_name) }}" class="btn btn-outline-primary w-100 py-2 fw-medium d-flex align-items-center justify-content-center gap-1">
-                                    <i class="mdi mdi-{{ auth()->user()->provider_name == 'google' ? 'google' : 'github' }} fs-18"></i>
-                                    Unlock with {{ ucfirst(auth()->user()->provider_name) }}
-                                </a>
-                            </div>
-                            <div class="text-center my-3">
-                                <span class="text-muted fs-12">OR UNLOCK WITH PASSWORD</span>
-                                <hr class="mt-neg-2 opacity-25">
-                            </div>
-                        @endif
-
                         <form id="unlock-form" action="{{ route('lockscreen.unlock') }}" method="POST">
                             @csrf
                             <div class="mb-3">
@@ -58,7 +45,7 @@
                         </form>
 
                         <div class="text-center mt-4">
-                            <p class="text-muted fs-13 mb-0">Not {{ auth()->user()->name }}? <a href="{{ route('logout') }}" class="text-primary fw-medium ms-1">Log Out</a></p>
+                            <p class="text-muted fs-13 mb-0">Not {{ auth()->user()->name }}? <a href="{{ route('logout.get') }}" class="text-primary fw-medium ms-1">Log Out</a></p>
                         </div>
                     </div>
 

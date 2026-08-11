@@ -6,11 +6,6 @@ Route::prefix('v1')->name('v1.')->middleware(['auth'])->group(function () {
       Route::post('info', [App\Http\Controllers\System\Profile\ProfileController::class, 'updateInfo'])->name('update-info');
       Route::post('password', [App\Http\Controllers\System\Profile\ProfileController::class, 'updatePassword'])->name('update-password');
       
-      // 2FA Management Routes
-      Route::post('2fa/generate', [\App\Http\Controllers\Auth\TwoFactorController::class, 'generate2FA'])->name('2fa.generate');
-      Route::post('2fa/confirm', [\App\Http\Controllers\Auth\TwoFactorController::class, 'confirm2FA'])->name('2fa.confirm');
-      Route::post('2fa/disable', [\App\Http\Controllers\Auth\TwoFactorController::class, 'disable2FA'])->name('2fa.disable');
-
       // Sanctum API Tokens Routes
       Route::post('tokens', [\App\Http\Controllers\System\Profile\SanctumTokenController::class, 'store'])->name('tokens.store');
       Route::delete('tokens/{id}', [\App\Http\Controllers\System\Profile\SanctumTokenController::class, 'destroy'])->name('tokens.destroy');

@@ -76,13 +76,9 @@
                         <div class="text-center text-md-start flex-grow-1">
                             <h3 class="fw-bold text-dark mb-1 d-flex align-items-center justify-content-center justify-content-md-start gap-2" id="profile-name-header">
                                 {{ $user->name }}
-                                @if($user->provider_name == 'google')
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle fs-11 font-sans" title="Signed in with Google OAuth">
-                                        <i class="mdi mdi-google me-1"></i>Google
-                                    </span>
-                                @elseif($user->provider_name == 'github')
-                                    <span class="badge bg-dark-subtle text-dark border border-dark-subtle fs-11 font-sans" title="Signed in with GitHub OAuth">
-                                        <i class="mdi mdi-github me-1"></i>GitHub
+                                @if($user->lark_open_id)
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-11 font-sans" title="Signed in with Lark SSO">
+                                        <i class="mdi mdi-account-key-outline me-1"></i>Lark
                                     </span>
                                 @endif
                             </h3>
@@ -113,7 +109,7 @@
                             </div>
                             <div class="border-start pe-1 ps-3">
                                 <h4 class="fw-bold mb-0 text-info">{{ $groupedPermissions->flatten()->count() }}</h4>
-                                <span class="text-muted fs-12">Allowed Routes</span>
+                                <span class="text-muted fs-12">Granted Permissions</span>
                             </div>
                         </div>
                     </div>
@@ -236,7 +232,7 @@
                                                 <i class="mdi mdi-shield-key-outline text-primary me-1"></i>Two-Factor Authentication (2FA)
                                             </h5>
                                             <div>
-                                                @if(auth()->user()->hasTwoFactorEnabled())
+                                                @if(auth()->user()->hasEnabledTwoFactorAuthentication())
                                                     <span class="badge bg-success-subtle text-success border border-success px-2 py-1 fs-11 me-1"><i class="mdi mdi-check-circle me-1"></i>Active</span>
                                                 @else
                                                     <span class="badge bg-secondary-subtle text-secondary px-2 py-1 fs-11 me-1">Disabled</span>
@@ -246,7 +242,7 @@
                                         <div class="card-body">
                                             <p class="text-muted fs-13 mb-3">Add an extra layer of security to your account using Google Authenticator or Authy app.</p>
                                             <div class="text-end">
-                                                @if(auth()->user()->hasTwoFactorEnabled())
+                                                @if(auth()->user()->hasEnabledTwoFactorAuthentication())
                                                     <button type="button" class="btn btn-outline-danger btn-sm" id="btn-disable-2fa-modal">
                                                         <i class="mdi mdi-shield-off-outline me-1"></i>Disable 2FA
                                                     </button>
@@ -310,7 +306,7 @@
                             <div class="row mb-3">
                                 <div class="col-12">
                                     <h5 class="fw-semibold mb-1">Granted Access Matrix</h5>
-                                    <p class="text-muted fs-13">Below are all the active routes and modules granted to your account based on your assigned roles.</p>
+                                    <p class="text-muted fs-13">Below are the active permissions granted to your account through its assigned roles.</p>
                                 </div>
                             </div>
 
@@ -327,7 +323,7 @@
                                                         <li class="list-group-item px-0 py-2 border-0 d-flex justify-content-between align-items-center bg-transparent">
                                                             <div>
                                                                 <span class="fw-semibold text-body fs-13">{{ $p->name }}</span>
-                                                                <span class="text-muted d-block fs-11">{{ $p->route_name }}</span>
+                                                        <span class="text-muted d-block fs-11">Permission name · guard_name: web</span>
                                                             </div>
                                                             <span class="badge bg-success-subtle text-success fs-11"><i class="mdi mdi-check-circle-outline me-1"></i>Allowed</span>
                                                         </li>
@@ -339,7 +335,7 @@
                                 @empty
                                     <div class="col-12 text-center py-4">
                                         <i class="mdi mdi-shield-alert-outline text-muted fs-36"></i>
-                                        <p class="text-muted fs-14 mt-2">No route permissions assigned to your account.</p>
+                                        <p class="text-muted fs-14 mt-2">No permissions assigned to your account.</p>
                                     </div>
                                 @endforelse
                             </div>
@@ -518,32 +514,43 @@
         // Enable 2FA Setup Button Click
         $('#btn-setup-2fa').on('click', function() {
             var btn = $(this);
-            btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Generating...');
-
-            $.ajax({
-                url: "{{ route('v1.profile.2fa.generate') }}",
-                type: "POST",
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                success: function(res) {
-                    btn.prop('disabled', false).html('<i class="mdi mdi-qrcode-scan me-1"></i>Enable 2FA');
-                    if (res.success) {
-                        $('#container-2fa-qr').html(res.qr_code_svg);
-                        $('#text-2fa-secret').text(res.secret);
-                        
-                        var recoveryHtml = '';
-                        res.recovery_codes.forEach(function(code) {
-                            recoveryHtml += '<div class="col-6"><code class="fs-12 text-dark">' + code + '</code></div>';
+            Swal.fire({
+                title: 'Confirm your password',
+                input: 'password',
+                showCancelButton: true,
+                confirmButtonText: 'Continue',
+                showLoaderOnConfirm: true,
+                preConfirm: (password) => $.ajax({
+                    url: "{{ url('/user/confirm-password') }}",
+                    type: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                    data: { password: password }
+                }).catch(error => Swal.showValidationMessage(error.responseJSON?.message || 'Password is incorrect.'))
+            }).then(function(result) {
+                if (!result.isConfirmed) return;
+                btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Generating...');
+                $.ajax({
+                    url: "{{ url('/user/two-factor-authentication') }}",
+                    type: 'POST',
+                    dataType: 'json',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                    success: function() {
+                        $.when(
+                            $.getJSON("{{ url('/user/two-factor-qr-code') }}"),
+                            $.getJSON("{{ url('/user/two-factor-recovery-codes') }}"),
+                            $.getJSON("{{ url('/user/two-factor-secret-key') }}")
+                        ).done(function(qr, codes, secret) {
+                            $('#container-2fa-qr').html(qr[0].svg);
+                            $('#text-2fa-secret').text(secret[0].secretKey);
+                            $('#container-2fa-recovery').html(codes[0].map(function(code) {
+                                return '<div class="col-6"><code class="fs-12 text-dark">' + code + '</code></div>';
+                            }).join(''));
+                            new bootstrap.Modal(document.getElementById('modal-setup-2fa')).show();
                         });
-                        $('#container-2fa-recovery').html(recoveryHtml);
-
-                        var modal = new bootstrap.Modal(document.getElementById('modal-setup-2fa'));
-                        modal.show();
-                    }
-                },
-                error: function() {
-                    btn.prop('disabled', false).html('<i class="mdi mdi-qrcode-scan me-1"></i>Enable 2FA');
-                    Swal.fire('Error!', 'Failed to generate 2FA setup.', 'error');
-                }
+                    },
+                    error: function(xhr) { Swal.fire('Error!', xhr.responseJSON?.message || 'Failed to generate 2FA setup.', 'error'); },
+                    complete: function() { btn.prop('disabled', false).html('<i class="mdi mdi-qrcode-scan me-1"></i>Enable 2FA'); }
+                });
             });
         });
 
@@ -554,16 +561,15 @@
             btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Verifying...');
 
             $.ajax({
-                url: "{{ route('v1.profile.2fa.confirm') }}",
+                url: "{{ url('/user/confirmed-two-factor-authentication') }}",
                 type: "POST",
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                dataType: 'json',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
                 data: $(this).serialize(),
                 success: function(res) {
                     btn.prop('disabled', false).text('Activate 2FA');
-                    if (res.success) {
-                        bootstrap.Modal.getInstance(document.getElementById('modal-setup-2fa')).hide();
-                        Swal.fire('Activated!', res.message, 'success').then(() => window.location.reload());
-                    }
+                    bootstrap.Modal.getInstance(document.getElementById('modal-setup-2fa')).hide();
+                    Swal.fire('Activated!', 'Two-factor authentication is now active.', 'success').then(() => window.location.reload());
                 },
                 error: function(xhr) {
                     btn.prop('disabled', false).text('Activate 2FA');
@@ -586,10 +592,10 @@
                 showLoaderOnConfirm: true,
                 preConfirm: (password) => {
                     return $.ajax({
-                        url: "{{ route('v1.profile.2fa.disable') }}",
-                        type: "POST",
-                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                        data: { current_password: password }
+                        url: "{{ url('/user/two-factor-authentication') }}",
+                        type: "DELETE",
+                        dataType: 'json',
+                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
                     }).catch(error => {
                         Swal.showValidationMessage(error.responseJSON?.message || 'Request failed');
                     });
@@ -726,4 +732,3 @@
     </div>
 </div>
 @endsection
-

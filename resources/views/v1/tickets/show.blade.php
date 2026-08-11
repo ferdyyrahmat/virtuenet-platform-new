@@ -202,23 +202,6 @@
             threadList.scrollTop = threadList.scrollHeight;
         }
 
-        // Subscribe to Pusher Realtime Chat Channel if enabled
-        if (window.PUSHER_CONFIG && window.PUSHER_CONFIG.enabled && window.PUSHER_CONFIG.key) {
-            try {
-                var pusher = new Pusher(window.PUSHER_CONFIG.key, {
-                    cluster: window.PUSHER_CONFIG.cluster || 'ap1',
-                    forceTLS: true
-                });
-
-                var ticketChannel = pusher.subscribe('ticket-' + ticketCode);
-                ticketChannel.bind('reply-created', function(data) {
-                    appendReplyBubble(data);
-                });
-            } catch (e) {
-                console.error("Pusher Ticket Channel Error:", e);
-            }
-        }
-
         // Send Reply Form Submit Handler (ZERO ALERTS / TOASTS!)
         const formReply = document.getElementById('form-user-ticket-reply');
         if (formReply) {

@@ -117,45 +117,7 @@
             </div>
         </div>
 
-        <div class="row mb-3 align-items-center">
-            <div class="col-md-6 mb-2 mb-md-0">
-                <h5 class="m-0 fw-semibold">Assign Route Permissions</h5>
-            </div>
-            <div class="col-md-6">
-                <div class="d-flex gap-2 justify-content-md-end">
-                    <input type="text" id="permission-search" class="form-control form-control-sm w-50" placeholder="Filter permissions (route name, suffix, URI)...">
-                    <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap" id="check-all-global">Toggle Select All Global</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 mb-4">
-            @foreach($groupedRoutes as $group => $routes)
-                <div class="col">
-                    <div class="card h-100 border border-light-subtle shadow-sm transition-all hover-shadow">
-                        <div class="card-header bg-light d-flex justify-content-between align-items-center py-2">
-                            <h6 class="m-0 fw-semibold text-primary"><i class="mdi mdi-folder-outline me-1"></i>{{ $group }}</h6>
-                            <div class="form-check form-switch mb-0">
-                                <input class="form-check-input select-all-group" type="checkbox" id="select_all_{{ Str::slug($group) }}" data-group="{{ Str::slug($group) }}">
-                                <label class="form-check-label fs-11 text-muted" for="select_all_{{ Str::slug($group) }}">Select All</label>
-                            </div>
-                        </div>
-                        <div class="card-body py-3">
-                            @foreach($routes as $route)
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input group-item-{{ Str::slug($group) }}" type="checkbox" name="permissions[]" value="{{ $route['name'] }}" id="perm_{{ Str::slug($route['name']) }}">
-                                    <label class="form-check-label fs-13" for="perm_{{ Str::slug($route['name']) }}">
-                                        <strong class="text-dark">{{ $route['suffix'] }}</strong> 
-                                        <span class="text-muted d-block fs-11">{{ $route['uri'] }}</span>
-                                        <span class="badge bg-light text-muted fs-9">{{ $route['method'] }}</span>
-                                    </label>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                </div>
-            @endforeach
-        </div>
+        @include('admin.permissions._assignment')
 
         <div class="row mb-4">
             <div class="col-12 text-end">
@@ -170,6 +132,12 @@
 @section('script-bottom')
 <script>
     $(document).ready(function() {
+        $('.select-all-group').each(function() {
+            var group = $(this).data('group');
+            var allChecked = $('.group-item-' + group).length > 0 && $('.group-item-' + group).length === $('.group-item-' + group + ':checked').length;
+            $(this).prop('checked', allChecked);
+        });
+
         $('.select-all-group').on('change', function() {
             var group = $(this).data('group');
             $('.group-item-' + group).prop('checked', this.checked);
@@ -185,23 +153,24 @@
             }
         });
 
-        // Toggle Select All Global
-        var globalState = false;
+        // Toggle all permissions
+        var globalState = $('input[name="permissions[]"]').length > 0 && $('input[name="permissions[]"]').length === $('input[name="permissions[]"]:checked').length;
+        $('#check-all-global').text(globalState ? 'Clear all permissions' : 'Select all permissions');
         $('#check-all-global').on('click', function() {
             globalState = !globalState;
             $('input[name="permissions[]"]').prop('checked', globalState);
-            $(this).text(globalState ? 'Deselect All Global' : 'Select All Global');
+            $(this).text(globalState ? 'Clear all permissions' : 'Select all permissions');
         });
 
         // Real-time Permission Filter Search
         $('#permission-search').on('input', function() {
             var query = $(this).val().toLowerCase();
             
-            $('.row-cols-1 .card').each(function() {
+            $('.permission-group-card').each(function() {
                 var card = $(this);
                 var visibleItems = 0;
                 
-                card.find('.form-check').each(function() {
+                card.find('.permission-item').each(function() {
                     var item = $(this);
                     var text = item.text().toLowerCase();
                     var value = item.find('input').val().toLowerCase();
@@ -215,9 +184,9 @@
                 });
                 
                 if (visibleItems > 0 || query === '') {
-                    card.parent().show();
+                    card.show();
                 } else {
-                    card.parent().hide();
+                    card.hide();
                 }
             });
         });

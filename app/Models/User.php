@@ -7,10 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
+use Spatie\Activitylog\Models\Activity;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -28,9 +31,7 @@ class User extends Authenticatable
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
-        'provider_name',
-        'provider_id',
-        'provider_token',
+        'lark_open_id',
     ];
 
     /**
@@ -43,7 +44,6 @@ class User extends Authenticatable
         'remember_token',
         'two_factor_secret',
         'two_factor_recovery_codes',
-        'provider_token',
     ];
 
     /**
@@ -60,11 +60,6 @@ class User extends Authenticatable
         ];
     }
 
-    public function hasTwoFactorEnabled(): bool
-    {
-        return !empty($this->two_factor_secret) && !is_null($this->two_factor_confirmed_at);
-    }
-
     public function getAvatarUrlAttribute(): string
     {
         if ($this->avatar && file_exists(public_path($this->avatar))) {
@@ -73,40 +68,24 @@ class User extends Authenticatable
         return asset('images/users/user-5.jpg');
     }
 
-    public function roles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
-    {
-        return $this->belongsToMany(Role::class);
-    }
-
     public function notifications(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(SystemNotification::class);
     }
 
-    public function auditLogs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function activityLogs(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
-        return $this->hasMany(AuditLog::class);
+        return $this->morphMany(Activity::class, 'causer');
     }
 
     public function isDeveloper(): bool
     {
-        return $this->roles()->where('name', 'Developer')->exists();
+        return $this->hasRole('Developer');
     }
 
     public function isAdmin(): bool
     {
-        return $this->roles()->whereIn('name', ['Developer', 'Admin', 'Administrator'])->exists();
+        return $this->hasAnyRole(['Developer', 'Admin', 'Administrator']);
     }
 
-    public function hasPermission(string $routeName): bool
-    {
-        // Level 1: Developer has 100% full access to all system routes
-        if ($this->isDeveloper()) {
-            return true;
-        }
-
-        return $this->roles()->whereHas('permissions', function ($query) use ($routeName) {
-            $query->where('route_name', $routeName);
-        })->exists();
-    }
 }

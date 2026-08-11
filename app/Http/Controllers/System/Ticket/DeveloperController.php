@@ -21,21 +21,13 @@ class DeveloperController extends Controller
         $request->validate([
             'name'             => 'required|string|max:255',
             'email'            => 'required|email|max:255',
-            'phone'            => 'nullable|string|max:50',
-            'telegram_chat_id' => 'nullable|string|max:100',
             'user_id'          => 'nullable|exists:users,id',
-            'notify_channels'  => 'nullable|array',
         ]);
-
-        $channels = $request->input('notify_channels', ['in_app', 'email']);
 
         $dev = Developer::create([
             'user_id'          => $request->user_id,
             'name'             => $request->name,
             'email'            => $request->email,
-            'phone'            => $request->phone,
-            'telegram_chat_id' => $request->telegram_chat_id,
-            'notify_channels'  => $channels,
             'is_active'        => true,
         ]);
 
@@ -55,22 +47,14 @@ class DeveloperController extends Controller
         $request->validate([
             'name'             => 'required|string|max:255',
             'email'            => 'required|email|max:255',
-            'phone'            => 'nullable|string|max:50',
-            'telegram_chat_id' => 'nullable|string|max:100',
             'user_id'          => 'nullable|exists:users,id',
-            'notify_channels'  => 'nullable|array',
             'is_active'        => 'required|boolean',
         ]);
-
-        $channels = $request->input('notify_channels', ['in_app', 'email']);
 
         $dev->update([
             'user_id'          => $request->user_id,
             'name'             => $request->name,
             'email'            => $request->email,
-            'phone'            => $request->phone,
-            'telegram_chat_id' => $request->telegram_chat_id,
-            'notify_channels'  => $channels,
             'is_active'        => (bool) $request->is_active,
         ]);
 

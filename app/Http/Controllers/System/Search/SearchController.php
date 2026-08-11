@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\System\Search;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
+use Spatie\Activitylog\Models\Activity;
 use App\Models\Developer;
 use App\Models\SystemNotification;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 
 class SearchController extends Controller
 {
@@ -29,12 +28,9 @@ class SearchController extends Controller
             ['name' => __('messages.user_management') . ' / User Management / Pengguna', 'url' => route('admin.users.index'), 'icon' => 'mdi-account-group-outline', 'category' => 'System Pages'],
             ['name' => __('messages.roles_permissions') . ' / Roles & Permissions / Hak Akses Peran', 'url' => route('admin.permissions.index'), 'icon' => 'mdi-shield-key-outline', 'category' => 'System Pages'],
             ['name' => __('messages.support_tickets') . ' / Support Tickets / Tiket Bantuan', 'url' => route('admin.tickets.index'), 'icon' => 'mdi-lifebuoy', 'category' => 'System Pages'],
-            ['name' => __('messages.cloud_directory') . ' / Cloud Directory MinIO / Storage', 'url' => route('admin.directory.index'), 'icon' => 'mdi-folder-network-outline', 'category' => 'System Pages'],
-            ['name' => __('messages.websocket_pusher') . ' / WebSocket & Pusher / Realtime Config', 'url' => route('admin.settings.websocket.index'), 'icon' => 'mdi-radio', 'category' => 'System Pages'],
-            ['name' => __('messages.app_branding') . ' / App Branding & Meta / Logo Setting', 'url' => route('admin.settings.branding.index'), 'icon' => 'mdi-cog-outline', 'category' => 'System Pages'],
-            ['name' => __('messages.backups') . ' / System Backups / Cadangan Database', 'url' => route('admin.backups.index'), 'icon' => 'mdi-database-outline', 'category' => 'System Pages'],
-            ['name' => __('messages.queues_redis') . ' / Task Queues & Redis / Worker Jobs', 'url' => route('admin.queues.index'), 'icon' => 'mdi-cpu', 'category' => 'System Pages'],
-            ['name' => __('messages.maintenance') . ' / Maintenance Mode / Pemeliharaan System', 'url' => route('admin.maintenance.index'), 'icon' => 'mdi-cloud-off-outline', 'category' => 'System Pages'],
+            ['name' => __('messages.cloud_directory') . ' / Storage', 'url' => route('admin.directory.index'), 'icon' => 'mdi-folder-network-outline', 'category' => 'System Pages'],
+            ['name' => 'Horizon / Queue Monitoring', 'url' => url('/horizon'), 'icon' => 'mdi-cpu', 'category' => 'System Pages'],
+            ['name' => 'Pulse / Application Monitoring', 'url' => url('/pulse'), 'icon' => 'mdi-chart-line', 'category' => 'System Pages'],
             ['name' => __('messages.notification_blast') . ' / Notification Blast / Pesan Blast', 'url' => route('admin.notifications.index'), 'icon' => 'mdi-bell-outline', 'category' => 'System Pages'],
             ['name' => __('messages.audit_trail') . ' / Audit Trail / Activity Logs', 'url' => route('admin.audit-logs.index'), 'icon' => 'mdi-history', 'category' => 'System Pages'],
             ['name' => __('messages.my_account') . ' / My Account Profile / Profil Saya', 'url' => route('v1.profile.index'), 'icon' => 'mdi-account-circle-outline', 'category' => 'System Pages'],
@@ -145,12 +141,10 @@ class SearchController extends Controller
 
         // 6. Search System Audit Logs (Event, Description, Module, IP)
         try {
-            if (class_exists(AuditLog::class)) {
-                $logs = AuditLog::where('event', 'like', "%{$query}%")
-                    ->orWhere('action_description', 'like', "%{$query}%")
-                    ->orWhere('user_name', 'like', "%{$query}%")
-                    ->orWhere('module', 'like', "%{$query}%")
-                    ->orWhere('ip_address', 'like', "%{$query}%")
+            if (class_exists(Activity::class)) {
+                $logs = Activity::with('causer')->where('event', 'like', "%{$query}%")
+                    ->orWhere('description', 'like', "%{$query}%")
+                    ->orWhere('log_name', 'like', "%{$query}%")
                     ->limit(4)
                     ->get();
 
@@ -158,8 +152,8 @@ class SearchController extends Controller
                     $results[] = [
                         'type'     => 'audit',
                         'category' => 'Audit Trail Logs',
-                        'title'    => "Log: {$log->event} ({$log->module})",
-                        'subtitle' => $log->action_description . " - IP: " . $log->ip_address,
+                        'title'    => "Log: {$log->event} ({$log->log_name})",
+                        'subtitle' => $log->description,
                         'url'      => route('admin.audit-logs.index'),
                         'icon'     => 'mdi-history'
                     ];

@@ -91,10 +91,10 @@ class UserController extends Controller
         $roleIds = $request->roles ?? [];
         $this->guardDeveloperRoleAssignment($roleIds);
         if ($request->has('roles')) {
-            $user->roles()->sync($roleIds);
+            $user->syncRoles($roleIds);
         }
 
-        \App\Models\AuditLog::log('user.create', "Created user '{$user->name}' ({$user->email})", 'user', ['user_id' => $user->id]);
+        audit_log("Created user '{$user->name}' ({$user->email})", 'user.create', 'user', ['user_id' => $user->id]);
 
         // Send welcome notification to created user
         $roleNames = $user->roles->pluck('name')->join(', ') ?: 'User';
@@ -155,12 +155,12 @@ class UserController extends Controller
                 Role::whereIn('id', $oldRoleIds)->whereRaw('LOWER(name) = ?', ['developer'])->pluck('id')->all()
             ));
         }
-        $user->roles()->sync($newRoles);
+        $user->syncRoles($newRoles);
 
         $user->load('roles');
         $newRoleNames = $user->roles->pluck('name')->join(', ') ?: 'No Role';
 
-        \App\Models\AuditLog::log('user.update', "Updated user '{$user->name}'", 'user', [
+        audit_log("Updated user '{$user->name}'", 'user.update', 'user', [
             'target_user_id' => $user->id,
             'roles' => $newRoleNames
         ]);
@@ -188,7 +188,7 @@ class UserController extends Controller
         $deletedName = $user->name;
         $user->delete();
 
-        \App\Models\AuditLog::log('user.delete', "Deleted user '{$deletedName}'", 'user', ['user_id' => $id]);
+        audit_log("Deleted user '{$deletedName}'", 'user.delete', 'user', ['user_id' => $id]);
 
         return response()->json([
             'success'  => true,

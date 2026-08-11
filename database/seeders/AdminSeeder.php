@@ -20,8 +20,9 @@ class AdminSeeder extends Seeder
         $devRole = Role::firstOrCreate(
             ['name' => 'Developer'],
             [
-                'description' => 'Level 1 Supreme Authority: Full system access, developer tools, task queues, Redis, backups, and ticket resolution.',
+                'description' => 'Level 1 Supreme Authority: Full system access, developer tools, task queues, Redis, and ticket resolution.',
                 'guard_name'  => 'web',
+                'is_locked' => true,
             ]
         );
 
@@ -50,19 +51,14 @@ class AdminSeeder extends Seeder
             $name = $r->getName();
             if ($name && str_starts_with($name, 'admin.')) {
                 $parts = explode('.', $name);
-                $group = isset($parts[1]) ? ucfirst($parts[1]) : 'System';
-
-                $p = Permission::firstOrCreate(
-                    ['route_name' => $name],
-                    ['name' => ucwords(str_replace('.', ' ', $name)), 'group_name' => $group]
-                );
+                $p = Permission::findOrCreate($name, 'web');
 
                 // Developer gets ALL admin permissions
-                $devRole->permissions()->syncWithoutDetaching([$p->id]);
+                $devRole->givePermissionTo($p);
 
                 // Admin gets operational management permissions
                 if (isset($parts[1]) && in_array($parts[1], $adminAllowedGroups)) {
-                    $adminRole->permissions()->syncWithoutDetaching([$p->id]);
+                    $adminRole->givePermissionTo($p);
                 }
             }
         }
@@ -78,9 +74,7 @@ class AdminSeeder extends Seeder
         );
 
         // Assign Developer role
-        if (!$devUser->roles()->where('role_id', $devRole->id)->exists()) {
-            $devUser->roles()->syncWithoutDetaching([$devRole->id]);
-        }
+        $devUser->assignRole($devRole);
 
         // Also ensure Developer is registered in developers table for ticket assignment & alerts
         \App\Models\Developer::updateOrCreate(
@@ -89,7 +83,6 @@ class AdminSeeder extends Seeder
                 'user_id'          => $devUser->id,
                 'name'             => $devUser->name,
                 'phone'            => $devUser->phone ?? '6289524424936',
-                'notify_channels'  => ['in_app', 'email', 'whatsapp', 'telegram'],
                 'is_active'        => true,
             ]
         );
