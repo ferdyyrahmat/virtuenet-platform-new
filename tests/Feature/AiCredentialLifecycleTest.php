@@ -46,7 +46,7 @@ class AiCredentialLifecycleTest extends TestCase
         $operator->assignRole($role);
 
         $this->actingAs($operator)
-            ->postJson(route('admin.ai-credentials.status', $credential), ['status' => 'paused'])
+            ->patchJson(route('admin.ai-credentials.status', $credential), ['status' => 'paused'])
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('message', 'AI credential status synchronized.');
