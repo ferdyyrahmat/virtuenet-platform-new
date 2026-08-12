@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Jobs\ProvisionAiCredential;
 use App\Models\AiAccessCredential;
 use App\Models\ExternalConnection;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\ServiceRequest;
 use App\Models\User;
 use App\Services\AiCredentialService;
@@ -30,6 +32,29 @@ class AiCredentialLifecycleTest extends TestCase
         $this->assertSame('revoked', $service->changeStatus($credential, 'revoked')->status);
 
         Http::assertSentCount(3);
+    }
+
+    public function test_admin_can_manage_virtual_key_through_authorized_gateway_route(): void
+    {
+        Http::fake([
+            'https://gateway.test/key/block' => Http::response(['status' => 'ok']),
+        ]);
+        $credential = $this->credential();
+        $role = Role::create(['name' => 'AI Gateway Operator', 'guard_name' => 'web']);
+        $role->givePermissionTo(Permission::findOrCreate('manage service requests', 'web'));
+        $operator = User::factory()->create();
+        $operator->assignRole($role);
+
+        $this->actingAs($operator)
+            ->postJson(route('admin.ai-credentials.status', $credential), ['status' => 'paused'])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'AI credential status synchronized.');
+
+        $this->assertSame('paused', $credential->fresh()->status);
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://gateway.test/key/block'
+            && $request['keys'] === ['sk-old-key']
+            && $request->hasHeader('Authorization', 'Bearer test-master'));
     }
 
     public function test_approved_ai_request_is_provisioned_end_to_end(): void
