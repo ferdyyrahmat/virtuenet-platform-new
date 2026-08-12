@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Enums\RequestApprovalStatus;
+use App\Enums\RequestFulfilmentStatus;
+use App\Enums\ServiceRequestStatus;
 use App\Http\Controllers\Controller;
+use App\Models\ServiceRequest;
 use App\Models\Ticket;
 use App\Models\TicketReply;
 use App\Services\TicketNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class UserTicketController extends Controller
 {
@@ -42,9 +47,11 @@ class UserTicketController extends Controller
     {
         $request->validate([
             'subject' => 'required|string|max:255',
+            'application_reference' => 'required|string|max:160',
             'category' => 'required|in:bug,feature_request,general_inquiry,server_issue,billing',
+            'severity' => 'required|in:low,medium,high,critical',
             'priority' => 'nullable|in:low,medium,high,urgent',
-            'description' => 'required|string',
+            'description' => 'required|string|max:10000',
             'name' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:50',
@@ -53,18 +60,43 @@ class UserTicketController extends Controller
         $user = Auth::user();
         $ticketCode = Ticket::generateTicketCode();
 
-        $ticket = Ticket::create([
-            'ticket_code' => $ticketCode,
-            'user_id' => $user?->id,
-            'name' => $user ? $user->name : ($request->name ?? 'Guest User'),
-            'email' => $user ? $user->email : ($request->email ?? 'guest@example.com'),
-            'phone' => $user ? $user->phone : $request->phone,
-            'subject' => $request->subject,
-            'category' => $request->category,
-            'priority' => $request->priority ?? 'medium',
-            'status' => 'open',
-            'description' => $request->description,
-        ]);
+        $ticket = DB::transaction(function () use ($request, $user, $ticketCode): Ticket {
+            $serviceRequest = ServiceRequest::create([
+                'code' => $ticketCode,
+                'requester_id' => $user->id,
+                'department_id' => $user->departments()->wherePivot('is_primary', true)->value('departments.id') ?? $user->departments()->value('departments.id'),
+                'type' => 'support',
+                'schema_version' => 1,
+                'title' => $request->subject,
+                'description' => $request->description,
+                'status' => ServiceRequestStatus::Submitted,
+                'approval_status' => RequestApprovalStatus::Approved,
+                'fulfilment_status' => RequestFulfilmentStatus::NotStarted,
+                'priority' => ($request->priority ?? 'medium') === 'medium' ? 'normal' : $request->priority,
+                'details' => ['application' => $request->application_reference, 'severity' => $request->severity, 'category' => $request->category],
+                'source' => 'platform',
+                'approval_source' => 'none',
+                'approval_sync_status' => 'synced',
+                'submitted_at' => now(),
+            ]);
+            $serviceRequest->updates()->create(['actor_id' => $user->id, 'type' => 'submitted', 'message' => 'Support request submitted for triage.']);
+
+            return Ticket::create([
+                'service_request_id' => $serviceRequest->id,
+                'ticket_code' => $ticketCode,
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'subject' => $request->subject,
+                'application_reference' => $request->application_reference,
+                'category' => $request->category,
+                'severity' => $request->severity,
+                'priority' => $request->priority ?? 'medium',
+                'status' => 'open',
+                'description' => $request->description,
+            ]);
+        });
 
         audit_log("Submitted support ticket #{$ticketCode}", 'create', 'ticket');
         $this->notifService->notifyTicketCreated($ticket);
@@ -103,6 +135,7 @@ class UserTicketController extends Controller
         if (in_array($ticket->status, ['resolved', 'closed', 'waiting_user'])) {
             $ticket->status = 'in_progress';
             $ticket->save();
+            $ticket->serviceRequest?->update(['status' => ServiceRequestStatus::InProgress, 'fulfilment_status' => RequestFulfilmentStatus::Provisioning]);
         }
 
         audit_log("Replied on ticket #{$code}", 'create', 'ticket');

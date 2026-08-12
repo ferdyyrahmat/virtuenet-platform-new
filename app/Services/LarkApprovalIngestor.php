@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\RequestApprovalStatus;
+use App\Enums\RequestFulfilmentStatus;
 use App\Enums\ServiceRequestStatus;
 use App\Enums\ServiceRequestType;
 use App\Models\Department;
@@ -19,6 +21,7 @@ class LarkApprovalIngestor
     public function __construct(
         private readonly LarkService $lark,
         private readonly LarkApprovalSynchronizer $synchronizer,
+        private readonly ServiceRequestDetailWriter $details,
     ) {}
 
     public function ingest(string $instanceCode): ServiceRequest
@@ -51,6 +54,7 @@ class LarkApprovalIngestor
                     'requester_id' => $requester->id,
                     'department_id' => Department::query()->where('lark_department_id', data_get($instance, 'department_id'))->value('id'),
                     'type' => $type,
+                    'schema_version' => $type->schemaVersion(),
                     'title' => $this->formValue($form, ['request title', 'judul permintaan', 'system name', 'nama sistem', 'application name', 'nama aplikasi'])
                         ?: $type->label().' '.$serial,
                     'description' => $this->formValue($form, ['description', 'deskripsi', 'business justification', 'justifikasi', 'purpose', 'tujuan', 'requirement', 'kebutuhan'])
@@ -61,6 +65,8 @@ class LarkApprovalIngestor
                     'source' => 'lark',
                     'source_record_id' => $instanceCode,
                     'approval_source' => 'lark',
+                    'approval_status' => $this->approvalStatus((string) data_get($instance, 'status')),
+                    'fulfilment_status' => $existing?->fulfilment_status ?? RequestFulfilmentStatus::NotStarted,
                     'lark_approval_code' => $approvalCode,
                     'lark_instance_code' => $instanceCode,
                     'lark_status' => strtoupper((string) data_get($instance, 'status')),
@@ -96,6 +102,7 @@ class LarkApprovalIngestor
 
             return $request;
         });
+        $this->details->sync($request);
 
         return $this->synchronizer->overall($request, (string) data_get($instance, 'status'), ['source' => 'lark_api']);
     }
@@ -168,6 +175,17 @@ class LarkApprovalIngestor
             'APPROVED' => ServiceRequestStatus::Approved,
             'REJECTED' => ServiceRequestStatus::Rejected,
             'CANCELED', 'CANCELLED', 'REVERTED', 'DELETED' => ServiceRequestStatus::Cancelled,
+            default => throw new UnexpectedValueException('Unknown Lark approval status.'),
+        };
+    }
+
+    private function approvalStatus(string $status): RequestApprovalStatus
+    {
+        return match (strtoupper($status)) {
+            'PENDING' => RequestApprovalStatus::InApproval,
+            'APPROVED' => RequestApprovalStatus::Approved,
+            'REJECTED' => RequestApprovalStatus::Rejected,
+            'CANCELED', 'CANCELLED', 'REVERTED', 'DELETED' => RequestApprovalStatus::Cancelled,
             default => throw new UnexpectedValueException('Unknown Lark approval status.'),
         };
     }

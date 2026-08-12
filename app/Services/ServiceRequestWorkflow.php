@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\RequestApprovalStatus;
+use App\Enums\RequestFulfilmentStatus;
 use App\Enums\ServiceRequestStatus;
 use App\Enums\ServiceRequestType;
 use App\Jobs\CreateLarkApproval;
@@ -11,43 +13,70 @@ use App\Models\ServiceRequest;
 use App\Models\ServiceRequestApproval;
 use App\Models\SystemNotification;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ServiceRequestWorkflow
 {
+    public function __construct(private readonly ServiceRequestDetailWriter $details) {}
+
     public function create(User $requester, array $data): ServiceRequest
     {
+        if (filled($data['idempotency_key'] ?? null)) {
+            $existing = ServiceRequest::query()
+                ->where('requester_id', $requester->id)
+                ->where('idempotency_key', $data['idempotency_key'])
+                ->first();
+            if ($existing) {
+                return $existing;
+            }
+        }
         if (config('services.lark.approval_enabled') && ! config('services.lark.approval_outbound_enabled')) {
             throw ValidationException::withMessages(['request' => 'Submit this request from the Lark Modified approval form.']);
         }
 
-        $request = DB::transaction(function () use ($requester, $data): ServiceRequest {
-            $type = ServiceRequestType::from($data['type']);
-            $larkApproval = (bool) config('services.lark.approval_enabled')
-                && (bool) config('services.lark.approval_outbound_enabled');
-            $request = ServiceRequest::create([
-                ...$data,
-                'code' => 'REQ-'.now()->format('Ym').'-'.strtoupper(substr((string) Str::ulid(), -8)),
-                'requester_id' => $requester->id,
-                'department_id' => $requester->departments()->wherePivot('is_primary', true)->value('departments.id')
-                    ?? $requester->departments()->value('departments.id'),
-                'status' => ServiceRequestStatus::Submitted,
-                'approval_source' => $larkApproval ? 'lark' : 'local',
-                'lark_approval_code' => $larkApproval ? config('services.lark.approval_code') : null,
-                'current_stage' => $larkApproval ? 'Manager approval' : $type->approvalStages()[0],
-                'submitted_at' => now(),
-            ]);
+        try {
+            $request = DB::transaction(function () use ($requester, $data): ServiceRequest {
+                $type = ServiceRequestType::from($data['type']);
+                $larkApproval = (bool) config('services.lark.approval_enabled')
+                    && (bool) config('services.lark.approval_outbound_enabled');
+                $request = ServiceRequest::create([
+                    ...collect($data)->except('attachments')->all(),
+                    'code' => 'REQ-'.now()->format('Ym').'-'.strtoupper(substr((string) Str::ulid(), -8)),
+                    'requester_id' => $requester->id,
+                    'department_id' => data_get($data, 'department_id') ?: $requester->departments()->wherePivot('is_primary', true)->value('departments.id')
+                        ?? $requester->departments()->value('departments.id'),
+                    'status' => ServiceRequestStatus::Submitted,
+                    'approval_status' => RequestApprovalStatus::Submitted,
+                    'fulfilment_status' => RequestFulfilmentStatus::NotStarted,
+                    'approval_source' => $larkApproval ? 'lark' : 'local',
+                    'lark_approval_code' => $larkApproval ? config('services.lark.approval_code') : null,
+                    'current_stage' => $larkApproval ? 'Manager approval' : $type->approvalStages()[0],
+                    'submitted_at' => now(),
+                ]);
 
-            if (! $larkApproval) {
-                $this->createApprovalRound($request, 1);
+                if (! $larkApproval) {
+                    $this->createApprovalRound($request, 1);
+                }
+                $this->record($request, $requester, 'submitted', 'Request submitted for review.');
+                $this->notifyReviewers($request, 'New request '.$request->code, $request->title);
+
+                return $request;
+            });
+        } catch (QueryException $exception) {
+            $existing = filled($data['idempotency_key'] ?? null)
+                ? ServiceRequest::query()->where('requester_id', $requester->id)->where('idempotency_key', $data['idempotency_key'])->first()
+                : null;
+            if (! $existing) {
+                throw $exception;
             }
-            $this->record($request, $requester, 'submitted', 'Request submitted for review.');
-            $this->notifyReviewers($request, 'New request '.$request->code, $request->title);
 
-            return $request;
-        });
+            return $existing;
+        }
+
+        $this->details->sync($request);
 
         if ($request->approval_source === 'lark') {
             CreateLarkApproval::dispatch($request)->afterCommit();
@@ -84,9 +113,10 @@ class ServiceRequestWorkflow
 
             if ($action === 'revision') {
                 $request->update(['status' => ServiceRequestStatus::RevisionRequested]);
+                $request->update(['approval_status' => RequestApprovalStatus::RevisionRequired]);
                 $message = 'Revision requested at '.$approval->stage.'.';
             } elseif ($action === 'reject') {
-                $request->update(['status' => ServiceRequestStatus::Rejected, 'current_stage' => null]);
+                $request->update(['status' => ServiceRequestStatus::Rejected, 'approval_status' => RequestApprovalStatus::Rejected, 'current_stage' => null]);
                 $message = 'Request rejected at '.$approval->stage.'.';
             } else {
                 $next = $request->approvals()
@@ -97,10 +127,10 @@ class ServiceRequestWorkflow
                     ->first();
 
                 if ($next) {
-                    $request->update(['status' => ServiceRequestStatus::UnderReview, 'current_stage' => $next->stage]);
+                    $request->update(['status' => ServiceRequestStatus::UnderReview, 'approval_status' => RequestApprovalStatus::InApproval, 'current_stage' => $next->stage]);
                     $message = $approval->stage.' approved. Next: '.$next->stage.'.';
                 } else {
-                    $request->update(['status' => ServiceRequestStatus::Approved, 'current_stage' => null, 'approved_at' => now()]);
+                    $request->update(['status' => ServiceRequestStatus::Approved, 'approval_status' => RequestApprovalStatus::Approved, 'fulfilment_status' => RequestFulfilmentStatus::Queued, 'current_stage' => null, 'approved_at' => now()]);
                     $message = 'All approval stages completed.';
                     $provisionAi = $request->type === ServiceRequestType::AiToken
                         || ($request->type === ServiceRequestType::CustomSystem && (bool) data_get($request->details, 'needs_ai_analyzer'));
@@ -135,14 +165,17 @@ class ServiceRequestWorkflow
 
             $round = $request->latestApprovalRound() + 1;
             $request->update([
-                ...$data,
+                ...collect($data)->except('attachments')->all(),
                 'status' => ServiceRequestStatus::Submitted,
+                'approval_status' => RequestApprovalStatus::Submitted,
+                'fulfilment_status' => RequestFulfilmentStatus::NotStarted,
                 'current_stage' => $request->type->approvalStages()[0],
                 'submitted_at' => now(),
             ]);
             $this->createApprovalRound($request, $round);
             $this->record($request, $actor, 'resubmitted', 'Revision submitted for review.', ['round' => $round]);
             $this->notifyReviewers($request, 'Revision ready '.$request->code, $request->title);
+            $this->details->sync($request);
 
             return $request;
         });
@@ -167,7 +200,15 @@ class ServiceRequestWorkflow
                 throw ValidationException::withMessages(['assigned_to' => 'Assign an owner before starting delivery.']);
             }
 
-            $values = ['status' => $next];
+            $values = [
+                'status' => $next,
+                'fulfilment_status' => match ($next) {
+                    ServiceRequestStatus::InProgress => RequestFulfilmentStatus::Provisioning,
+                    ServiceRequestStatus::WaitingExternal => RequestFulfilmentStatus::Queued,
+                    ServiceRequestStatus::Completed => RequestFulfilmentStatus::Completed,
+                    default => $request->fulfilment_status,
+                },
+            ];
             if ($assigneeId !== null) {
                 $values['assigned_to'] = $assigneeId;
             }
@@ -194,6 +235,12 @@ class ServiceRequestWorkflow
     {
         return DB::transaction(function () use ($request, $actor, $data): ServiceDelivery {
             $delivery = $request->delivery()->updateOrCreate([], $data);
+            $request->update(['fulfilment_status' => match ($delivery->status) {
+                'active' => RequestFulfilmentStatus::Active,
+                'delivered' => RequestFulfilmentStatus::Completed,
+                'expired' => RequestFulfilmentStatus::Revoked,
+                default => $request->fulfilment_status,
+            }]);
             $this->record($request, $actor, 'delivery', 'Delivery information updated.');
             $this->notifyRequester($request, 'Delivery updated', 'New delivery information is available for '.$request->code.'.');
 
@@ -220,7 +267,7 @@ class ServiceRequestWorkflow
         }
 
         DB::transaction(function () use ($request, $actor): void {
-            $request->update(['status' => ServiceRequestStatus::Cancelled, 'cancelled_at' => now(), 'current_stage' => null]);
+            $request->update(['status' => ServiceRequestStatus::Cancelled, 'approval_status' => RequestApprovalStatus::Cancelled, 'cancelled_at' => now(), 'current_stage' => null]);
             $this->record($request, $actor, 'cancelled', 'Request cancelled by requester.');
         });
     }

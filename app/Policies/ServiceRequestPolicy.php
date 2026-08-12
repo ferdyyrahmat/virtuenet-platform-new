@@ -23,6 +23,7 @@ class ServiceRequestPolicy
     public function cancel(User $user, ServiceRequest $serviceRequest): bool
     {
         return $serviceRequest->requester_id === $user->id
+            && $serviceRequest->approval_source !== 'lark'
             && in_array($serviceRequest->status->value, ['submitted', 'under_review', 'revision_requested'], true);
     }
 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\System\Ticket;
 
+use App\Enums\RequestFulfilmentStatus;
+use App\Enums\ServiceRequestStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Developer;
 use App\Models\Ticket;
@@ -21,7 +23,7 @@ class TicketController extends Controller
 
     public function index(Request $request)
     {
-        $query = Ticket::with(['user', 'assignedDeveloper'])->orderBy('created_at', 'desc');
+        $query = Ticket::with(['user', 'assignedDeveloper', 'serviceRequest'])->orderBy('created_at', 'desc');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -39,10 +41,10 @@ class TicketController extends Controller
         $developers = Developer::where('is_active', true)->get();
 
         $stats = [
-            'total'       => Ticket::count(),
-            'open'        => Ticket::where('status', 'open')->count(),
+            'total' => Ticket::count(),
+            'open' => Ticket::where('status', 'open')->count(),
             'in_progress' => Ticket::where('status', 'in_progress')->count(),
-            'resolved'    => Ticket::where('status', 'resolved')->count(),
+            'resolved' => Ticket::where('status', 'resolved')->count(),
         ];
 
         return view('admin.tickets.index', compact('tickets', 'developers', 'stats'));
@@ -50,7 +52,7 @@ class TicketController extends Controller
 
     public function show(string $id)
     {
-        $ticket = Ticket::with(['user', 'assignedDeveloper', 'replies.user'])->findOrFail($id);
+        $ticket = Ticket::with(['user', 'assignedDeveloper', 'replies.user', 'serviceRequest'])->findOrFail($id);
         $developers = Developer::where('is_active', true)->get();
 
         return view('admin.tickets.show', compact('ticket', 'developers'));
@@ -59,41 +61,42 @@ class TicketController extends Controller
     public function reply(Request $request, string $id)
     {
         $request->validate([
-            'message'          => 'required|string',
+            'message' => 'required|string',
             'is_internal_note' => 'nullable|boolean',
-            'status'           => 'nullable|in:open,in_progress,waiting_user,resolved,closed',
+            'status' => 'nullable|in:open,in_progress,waiting_user,resolved,closed',
         ]);
 
         $ticket = Ticket::findOrFail($id);
         $user = Auth::user();
 
         $reply = TicketReply::create([
-            'ticket_id'        => $ticket->id,
-            'user_id'          => $user->id,
-            'sender_type'      => 'developer',
-            'sender_name'      => $user->name,
-            'sender_email'     => $user->email,
-            'message'          => $request->message,
+            'ticket_id' => $ticket->id,
+            'user_id' => $user->id,
+            'sender_type' => 'developer',
+            'sender_name' => $user->name,
+            'sender_email' => $user->email,
+            'message' => $request->message,
             'is_internal_note' => $request->boolean('is_internal_note'),
         ]);
 
         if ($request->filled('status')) {
             $oldStatus = $ticket->status;
             $ticket->status = $request->status;
-            if ($request->status === 'resolved' && !$ticket->resolved_at) {
+            if ($request->status === 'resolved' && ! $ticket->resolved_at) {
                 $ticket->resolved_at = now();
             }
             $ticket->save();
+            $this->syncRequest($ticket);
         }
 
         audit_log("Posted reply on ticket #{$ticket->ticket_code}", 'create', 'ticket');
         $this->notifService->notifyTicketReplied($ticket, $reply);
 
         return response()->json([
-            'success'  => true,
-            'message'  => 'Reply posted successfully!',
+            'success' => true,
+            'message' => 'Reply posted successfully!',
             'redirect' => route('admin.tickets.show', $ticket->id),
-            'reply'    => $reply
+            'reply' => $reply,
         ]);
     }
 
@@ -101,7 +104,10 @@ class TicketController extends Controller
     {
         $request->validate([
             'assigned_developer_id' => 'nullable|exists:developers,id',
-            'status'                => 'nullable|in:open,in_progress,waiting_user,resolved,closed',
+            'status' => 'nullable|in:open,in_progress,waiting_user,resolved,closed',
+            'application_reference' => 'nullable|string|max:160',
+            'severity' => 'nullable|in:low,medium,high,critical',
+            'github_issue_url' => 'nullable|url:http,https|max:2048',
         ]);
 
         $ticket = Ticket::findOrFail($id);
@@ -111,15 +117,18 @@ class TicketController extends Controller
             $ticket->status = $request->status;
         }
 
+        $ticket->fill($request->only(['application_reference', 'severity', 'github_issue_url']));
+
         $ticket->save();
+        $this->syncRequest($ticket);
 
         $devName = $ticket->assignedDeveloper ? $ticket->assignedDeveloper->name : 'Unassigned';
         audit_log("Assigned ticket #{$ticket->ticket_code} to {$devName}", 'update', 'ticket');
 
         return response()->json([
-            'success'  => true,
-            'message'  => "Ticket assigned to {$devName} successfully!",
-            'redirect' => route('admin.tickets.show', $ticket->id)
+            'success' => true,
+            'message' => "Ticket assigned to {$devName} successfully!",
+            'redirect' => route('admin.tickets.show', $ticket->id),
         ]);
     }
 
@@ -127,14 +136,45 @@ class TicketController extends Controller
     {
         $ticket = Ticket::findOrFail($id);
         $code = $ticket->ticket_code;
-        $ticket->delete();
+        $ticket->update(['status' => 'closed', 'resolved_at' => $ticket->resolved_at ?? now()]);
+        $this->syncRequest($ticket);
 
-        audit_log("Deleted ticket #{$code}", 'delete', 'ticket');
+        audit_log("Closed ticket #{$code}", 'update', 'ticket');
 
         return response()->json([
-            'success'  => true,
-            'message'  => "Ticket #{$code} deleted successfully.",
-            'redirect' => route('admin.tickets.index')
+            'success' => true,
+            'message' => "Ticket #{$code} closed. Its audit history was preserved.",
+            'redirect' => route('admin.tickets.index'),
+        ]);
+    }
+
+    private function syncRequest(Ticket $ticket): void
+    {
+        if (! $ticket->serviceRequest) {
+            return;
+        }
+        [$status, $fulfilment] = match ($ticket->status) {
+            'in_progress' => [ServiceRequestStatus::InProgress, RequestFulfilmentStatus::Provisioning],
+            'waiting_user' => [ServiceRequestStatus::WaitingExternal, RequestFulfilmentStatus::Queued],
+            'resolved', 'closed' => [ServiceRequestStatus::Completed, RequestFulfilmentStatus::Completed],
+            default => [ServiceRequestStatus::Submitted, RequestFulfilmentStatus::NotStarted],
+        };
+        $ticket->serviceRequest->update([
+            'status' => $status,
+            'fulfilment_status' => $fulfilment,
+            'details' => [
+                ...($ticket->serviceRequest->details ?? []),
+                'application' => $ticket->application_reference,
+                'severity' => $ticket->severity,
+                'category' => $ticket->category,
+                'github_issue_url' => $ticket->github_issue_url,
+            ],
+            'completed_at' => $status === ServiceRequestStatus::Completed ? ($ticket->resolved_at ?? now()) : null,
+        ]);
+        $ticket->serviceRequest->updates()->create([
+            'actor_id' => auth()->id(),
+            'type' => 'status',
+            'message' => 'Support status changed to '.str($ticket->status)->replace('_', ' ')->title().'.',
         ]);
     }
 }

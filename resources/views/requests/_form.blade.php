@@ -1,12 +1,29 @@
 @php
     $editing = isset($serviceRequest);
     $selectedType = old('type', $editing ? $serviceRequest->type->value : $type?->value);
-    $details = old('details', $editing ? $serviceRequest->details : []);
+    $templateDefaults = isset($selectedTemplate) ? $selectedTemplate->defaults : [];
+    $details = old('details', $editing ? $serviceRequest->details : data_get($templateDefaults, 'details', []));
 @endphp
 
-<form method="POST" action="{{ $editing ? route('v1.requests.resubmit', $serviceRequest) : route('v1.requests.store') }}" class="platform-request-form">
+<form method="POST" enctype="multipart/form-data" action="{{ $editing ? route('v1.requests.resubmit', $serviceRequest) : route('v1.requests.store') }}" class="platform-request-form">
     @csrf
     @if($editing) @method('PUT') @endif
+    <input type="hidden" name="schema_version" value="1">
+    @if(!$editing)<input type="hidden" name="idempotency_key" value="{{ old('idempotency_key', (string) Illuminate\Support\Str::uuid()) }}">@endif
+
+    @if(!$editing && isset($templates) && $templates->isNotEmpty())
+        <div class="mb-4">
+            <label class="form-label">Start from a template <span class="text-muted">(optional)</span></label>
+            <div class="service-catalog">
+                @foreach($templates as $template)
+                    <a href="{{ route('v1.requests.create', ['type' => $template->request_type->value, 'template' => $template->id]) }}" class="service-catalog-item {{ ($selectedTemplate?->id ?? null) === $template->id ? 'active' : '' }}">
+                        <i class="mdi {{ $template->request_type->icon() }}"></i><span>{{ $template->name }}</span>
+                    </a>
+                @endforeach
+            </div>
+            @if(isset($selectedTemplate))<input type="hidden" name="template_id" value="{{ $selectedTemplate->id }}"><div class="form-text">{{ $selectedTemplate->summary }} · Template v{{ $selectedTemplate->version }}</div>@endif
+        </div>
+    @endif
 
     <div class="row g-3">
         <div class="col-md-5">
@@ -14,6 +31,7 @@
             <select id="request-type" name="type" class="form-select" {{ $editing ? 'disabled' : '' }} required>
                 <option value="">Choose a service</option>
                 @foreach(\App\Enums\ServiceRequestType::cases() as $requestType)
+                    @continue($requestType === \App\Enums\ServiceRequestType::Support)
                     <option value="{{ $requestType->value }}" @selected($selectedType === $requestType->value)>{{ $requestType->label() }}</option>
                 @endforeach
             </select>
@@ -21,8 +39,14 @@
         </div>
         <div class="col-md-7">
             <label class="form-label" for="request-title">Request title</label>
-            <input id="request-title" name="title" class="form-control" maxlength="160" value="{{ old('title', $serviceRequest->title ?? '') }}" placeholder="A short, recognizable title" required>
+            <input id="request-title" name="title" class="form-control" maxlength="160" value="{{ old('title', $serviceRequest->title ?? data_get($templateDefaults, 'title', '')) }}" placeholder="A short, recognizable title" required>
         </div>
+        @if(!$editing && isset($departments) && $departments->count() > 1)
+            <div class="col-md-6"><label class="form-label" for="request-department">Requesting department</label><select id="request-department" name="department_id" class="form-select" required>@foreach($departments as $department)<option value="{{ $department->id }}" @selected(old('department_id', $departments->firstWhere('pivot.is_primary', true)?->id) == $department->id)>{{ $department->name }}</option>@endforeach</select></div>
+        @endif
+        @if(!$editing && isset($projects) && $projects->isNotEmpty())
+            <div class="col-md-6"><label class="form-label" for="request-parent">Parent project <span class="text-muted">(optional)</span></label><select id="request-parent" name="parent_id" class="form-select"><option value="">Standalone request</option>@foreach($projects as $project)<option value="{{ $project->id }}" @selected(old('parent_id') == $project->id)>{{ $project->code }} · {{ $project->title }}</option>@endforeach</select></div>
+        @endif
         <div class="col-12">
             <label class="form-label" for="request-description">Context and expected outcome</label>
             <textarea id="request-description" name="description" class="form-control" rows="4" maxlength="10000" placeholder="Explain what you need, why it matters, and what success looks like." required>{{ old('description', $serviceRequest->description ?? '') }}</textarea>
@@ -42,6 +66,8 @@
         <div class="col-md-3"><label class="form-label" for="request-budget">Estimated total <span class="text-muted">(required for SaaS)</span></label><input id="request-budget" type="number" name="estimated_budget" class="form-control" min="0" step="0.01" value="{{ old('estimated_budget', $serviceRequest->estimated_budget ?? '') }}"></div>
         <div class="col-md-3"><label class="form-label" for="request-currency">Currency</label><input id="request-currency" name="currency" class="form-control text-uppercase" maxlength="3" value="{{ old('currency', $serviceRequest->currency ?? 'USD') }}" required></div>
     </div>
+
+    <div class="mt-4"><label class="form-label" for="request-attachments">Supporting files <span class="text-muted">(optional, max 5 × 10 MB)</span></label><input id="request-attachments" type="file" name="attachments[]" class="form-control" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.csv,.txt"><div class="form-text">Files stay private and inherit this request's access rules.</div></div>
 
     <div class="request-detail-panel mt-4" data-request-section="ai_token">
         <h6>AI access requirements</h6>

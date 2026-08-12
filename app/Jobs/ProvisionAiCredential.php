@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\RequestFulfilmentStatus;
 use App\Enums\ServiceRequestType;
 use App\Models\AiAccessCredential;
 use App\Models\ServiceRequest;
@@ -82,12 +83,14 @@ class ProvisionAiCredential implements ShouldQueue
             'metadata' => ['litellm' => collect($response)->except(['key', 'token'])->all()],
         ]);
 
+        $request->update(['fulfilment_status' => RequestFulfilmentStatus::Active]);
         $request->updates()->create(['type' => 'provisioned', 'message' => 'AI access token provisioned and ready to use.']);
         SystemNotification::send($request->requester_id, 'AI token ready', $request->code.' is ready to use.', 'success', 'mdi-key-variant', route('v1.requests.show', $request));
     }
 
     public function failed(?\Throwable $exception): void
     {
+        $this->request->update(['fulfilment_status' => RequestFulfilmentStatus::Failed]);
         $this->request->updates()->create(['type' => 'integration_error', 'message' => 'AI token provisioning needs operator attention.']);
         SystemNotification::send($this->request->requester_id, 'AI token pending', 'Your request is approved, but token delivery is still being processed.', 'warning', 'mdi-alert-circle-outline', route('v1.requests.show', $this->request));
     }

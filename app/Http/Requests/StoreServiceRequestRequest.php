@@ -3,8 +3,11 @@
 namespace App\Http\Requests;
 
 use App\Enums\ServiceRequestType;
+use App\Models\RequestTemplate;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreServiceRequestRequest extends FormRequest
 {
@@ -23,6 +26,8 @@ class StoreServiceRequestRequest extends FormRequest
         $this->merge([
             'details' => $details,
             'currency' => strtoupper((string) $this->input('currency', 'USD')),
+            'schema_version' => (int) $this->input('schema_version', 1),
+            'idempotency_key' => $this->header('Idempotency-Key') ?: $this->input('idempotency_key'),
         ]);
     }
 
@@ -37,6 +42,11 @@ class StoreServiceRequestRequest extends FormRequest
 
         return [
             'type' => ['required', Rule::enum(ServiceRequestType::class)],
+            'schema_version' => ['required', 'integer', Rule::in([$type?->schemaVersion() ?? 1])],
+            'template_id' => ['nullable', Rule::exists('request_templates', 'id')->where('active', true)],
+            'department_id' => ['nullable', Rule::exists('department_user', 'department_id')->where('user_id', $this->user()?->id)],
+            'parent_id' => ['nullable', Rule::exists('service_requests', 'id')->where('requester_id', $this->user()?->id)],
+            'idempotency_key' => ['nullable', 'string', 'max:128'],
             'title' => ['required', 'string', 'max:160'],
             'description' => ['required', 'string', 'max:10000'],
             'priority' => ['required', Rule::in(['low', 'normal', 'high', 'urgent'])],
@@ -44,8 +54,35 @@ class StoreServiceRequestRequest extends FormRequest
             'estimated_budget' => ['nullable', 'required_if:type,saas_subscription', 'numeric', 'min:0', 'max:999999999999'],
             'currency' => ['required', 'alpha', 'size:3'],
             'details' => ['required', 'array'],
+            'attachments' => ['nullable', 'array', 'max:5'],
+            'attachments.*' => ['file', 'max:10240', 'mimes:pdf,png,jpg,jpeg,doc,docx,xls,xlsx,csv,txt'],
             ...$this->detailRules($type),
         ];
+    }
+
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            $definitionExists = DB::table('request_type_definitions')
+                ->where('type', $this->string('type'))
+                ->where('version', $this->integer('schema_version'))
+                ->where('active', true)
+                ->exists();
+            if (! $definitionExists) {
+                $validator->errors()->add('schema_version', 'This request type or schema version is not currently accepted.');
+            }
+            if (! $this->filled('template_id')) {
+                return;
+            }
+            $matches = RequestTemplate::query()
+                ->whereKey($this->integer('template_id'))
+                ->where('request_type', $this->string('type'))
+                ->where('version', $this->integer('schema_version'))
+                ->exists();
+            if (! $matches) {
+                $validator->errors()->add('template_id', 'The template does not match this request type and schema version.');
+            }
+        }];
     }
 
     private function detailRules(?ServiceRequestType $type): array
@@ -83,6 +120,7 @@ class StoreServiceRequestRequest extends FormRequest
                 'details.vendor_url' => ['nullable', 'url:http,https', 'max:2048'],
                 'details.business_reason' => ['required', 'string', 'max:3000'],
             ],
+            ServiceRequestType::Support => [],
             default => [],
         };
     }

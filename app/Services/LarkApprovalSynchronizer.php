@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\RequestApprovalStatus;
+use App\Enums\RequestFulfilmentStatus;
 use App\Enums\ServiceRequestStatus;
 use App\Enums\ServiceRequestType;
 use App\Jobs\ProvisionAiCredential;
@@ -27,6 +29,15 @@ class LarkApprovalSynchronizer
             $changed = $request->status !== $status;
             $request->update([
                 'status' => $status,
+                'approval_status' => match ($status) {
+                    ServiceRequestStatus::Approved => RequestApprovalStatus::Approved,
+                    ServiceRequestStatus::Rejected => RequestApprovalStatus::Rejected,
+                    ServiceRequestStatus::Cancelled => RequestApprovalStatus::Cancelled,
+                    default => RequestApprovalStatus::InApproval,
+                },
+                'fulfilment_status' => $status === ServiceRequestStatus::Approved && $request->fulfilment_status === RequestFulfilmentStatus::NotStarted
+                    ? RequestFulfilmentStatus::Queued
+                    : $request->fulfilment_status,
                 'lark_status' => strtoupper($larkStatus) ?: 'PENDING',
                 'approval_sync_status' => 'synced',
                 'approval_synced_at' => now(),

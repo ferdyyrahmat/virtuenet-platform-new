@@ -18,8 +18,16 @@
                     <div><small>Priority</small><strong>{{ str($serviceRequest->priority)->title() }}</strong></div>
                     <div><small>Needed by</small><strong>{{ $serviceRequest->requested_due_date?->format('d M Y') ?: 'Flexible' }}</strong></div>
                     <div><small>Estimated total</small><strong>{{ $serviceRequest->estimated_budget !== null ? $serviceRequest->currency.' '.number_format((float)$serviceRequest->estimated_budget, 2) : 'Not provided' }}</strong></div>
+                    <div><small>Department</small><strong>{{ $serviceRequest->department?->name ?: 'Not assigned' }}</strong></div>
+                    <div><small>Approval</small><strong>{{ $serviceRequest->approval_status->label() }}</strong></div>
+                    <div><small>Fulfilment</small><strong>{{ $serviceRequest->fulfilment_status->label() }}</strong></div>
+                    @if($serviceRequest->parent)<div><small>Parent project</small><strong><a href="{{ route('v1.requests.show', $serviceRequest->parent) }}">{{ $serviceRequest->parent->code }}</a></strong></div>@endif
                 </div>
             </div></div>
+
+            @if($serviceRequest->attachments->isNotEmpty())
+                <div class="card platform-card mb-4"><div class="card-body p-4"><h6 class="section-title">Supporting files</h6><div class="detail-list">@foreach($serviceRequest->attachments as $attachment)<a class="d-flex justify-content-between align-items-center py-2" href="{{ route('v1.request-attachments.download', $attachment) }}"><span><i class="mdi mdi-paperclip me-2"></i>{{ $attachment->original_name }}</span><small>{{ \Illuminate\Support\Number::fileSize($attachment->size) }}</small></a>@endforeach</div></div></div>
+            @endif
 
             @if($serviceRequest->aiCredential)
                 <div class="card platform-card mb-4 border-success"><div class="card-body p-4">
@@ -52,6 +60,7 @@
             </div></div>
         </div>
         <div class="col-xl-4">
+            <div class="card platform-card mb-4"><div class="card-body p-4"><h6 class="section-title">Request lifecycle</h6><div class="approval-steps"><div class="approval-step is-{{ $serviceRequest->approval_status->value === 'approved' ? 'approved' : 'pending' }}"><span><i class="mdi mdi-clipboard-check-outline"></i></span><div><strong>Decision</strong><small>{{ $serviceRequest->approval_status->label() }}</small></div></div><div class="approval-step is-{{ $serviceRequest->fulfilment_status->value === 'completed' ? 'approved' : 'pending' }}"><span><i class="mdi mdi-progress-wrench"></i></span><div><strong>Fulfilment</strong><small>{{ $serviceRequest->fulfilment_status->label() }}</small></div></div></div>@if($serviceRequest->lark_approval_url)<a href="{{ $serviceRequest->lark_approval_url }}" class="btn btn-light btn-sm w-100 mt-3" target="_blank" rel="noopener">Open in Lark</a>@endif</div></div>
             <div class="card platform-card mb-4"><div class="card-body p-4"><h6 class="section-title">Approval progress</h6>
                 <div class="approval-steps">@foreach($serviceRequest->approvals->groupBy('round') as $round => $approvals)<div class="approval-round">Round {{ $round }}</div>@foreach($approvals as $approval)<div class="approval-step is-{{ $approval->status }}"><span><i class="mdi {{ $approval->status === 'approved' ? 'mdi-check' : ($approval->status === 'pending' ? 'mdi-clock-outline' : 'mdi-alert-outline') }}"></i></span><div><strong>{{ $approval->stage }}</strong><small>{{ str($approval->status)->replace('_',' ')->title() }}{{ $approval->approver ? ' by '.$approval->approver->name : '' }}</small>@if($approval->note)<p>{{ $approval->note }}</p>@endif</div></div>@endforeach@endforeach</div>
             </div></div>

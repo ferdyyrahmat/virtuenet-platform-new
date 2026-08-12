@@ -8,6 +8,7 @@ enum ServiceRequestType: string
     case CustomSystem = 'custom_system';
     case Integration = 'integration';
     case SaasSubscription = 'saas_subscription';
+    case Support = 'support';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum ServiceRequestType: string
             self::CustomSystem => 'Custom System',
             self::Integration => 'System Integration',
             self::SaasSubscription => 'SaaS Subscription',
+            self::Support => 'Support',
         };
     }
 
@@ -26,6 +28,7 @@ enum ServiceRequestType: string
             self::CustomSystem => 'mdi-application-braces-outline',
             self::Integration => 'mdi-connection',
             self::SaasSubscription => 'mdi-credit-card-outline',
+            self::Support => 'mdi-lifebuoy',
         };
     }
 
@@ -36,6 +39,12 @@ enum ServiceRequestType: string
             self::CustomSystem => ['Scope review', 'Budget approval'],
             self::Integration => ['Technical review'],
             self::SaasSubscription => ['Business review', 'Procurement approval'],
+            self::Support => [],
         };
+    }
+
+    public function schemaVersion(): int
+    {
+        return 1;
     }
 }

@@ -54,6 +54,7 @@ return [
         'approval_field_map' => json_decode((string) env('LARK_APPROVAL_FIELD_MAP', '[]'), true) ?: [],
         'approval_node_approvers' => json_decode((string) env('LARK_APPROVAL_NODE_APPROVERS', '[]'), true) ?: [],
         'approval_url_template' => env('LARK_APPROVAL_URL_TEMPLATE'),
+        'approval_form_url' => env('LARK_APPROVAL_FORM_URL'),
         'webhook_clock_skew' => (int) env('LARK_WEBHOOK_CLOCK_SKEW', 300),
     ],
 

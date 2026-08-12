@@ -151,6 +151,15 @@
                                 </option>
                             @endforeach
                         </select>
+                        <label class="form-label fw-semibold fs-13">Application / service</label>
+                        <input class="form-control form-control-sm mb-2" name="application_reference" maxlength="160" value="{{ $ticket->application_reference }}" placeholder="Application name">
+                        <label class="form-label fw-semibold fs-13">Severity</label>
+                        <select class="form-select form-select-sm mb-2" name="severity">
+                            <option value="">Not classified</option>
+                            @foreach(['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'critical' => 'Critical'] as $value => $label)<option value="{{ $value }}" @selected($ticket->severity === $value)>{{ $label }}</option>@endforeach
+                        </select>
+                        <label class="form-label fw-semibold fs-13">GitHub issue URL</label>
+                        <input type="url" class="form-control form-control-sm mb-2" name="github_issue_url" maxlength="2048" value="{{ $ticket->github_issue_url }}" placeholder="https://github.com/owner/repo/issues/123">
                         <button type="submit" class="btn btn-outline-primary btn-sm w-100 fw-bold" id="btn-submit-assign">
                             <i class="mdi mdi-account-check me-1"></i>Update Assignee
                         </button>
@@ -173,6 +182,9 @@
                                 </span>
                             </td>
                         </tr>
+                        <tr><td class="text-muted ps-0">Application:</td><td class="text-dark text-end pe-0">{{ $ticket->application_reference ?: 'Not classified' }}</td></tr>
+                        <tr><td class="text-muted ps-0">Severity:</td><td class="text-dark text-end pe-0">{{ str($ticket->severity ?: 'not classified')->title() }}</td></tr>
+                        @if($ticket->github_issue_url)<tr><td class="text-muted ps-0">GitHub:</td><td class="text-end pe-0"><a href="{{ $ticket->github_issue_url }}" target="_blank" rel="noopener">Open issue</a></td></tr>@endif
                         <tr>
                             <td class="text-muted ps-0">Submitter Email:</td>
                             <td class="text-dark text-end pe-0">{{ $ticket->email }}</td>

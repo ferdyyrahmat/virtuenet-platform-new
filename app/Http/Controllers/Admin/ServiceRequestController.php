@@ -30,6 +30,10 @@ class ServiceRequestController extends Controller
             }))
             ->when($request->filled('type'), fn ($query) => $query->where('type', $request->string('type')))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
+            ->when($request->filled('approval_status'), fn ($query) => $query->where('approval_status', $request->string('approval_status')))
+            ->when($request->filled('fulfilment_status'), fn ($query) => $query->where('fulfilment_status', $request->string('fulfilment_status')))
+            ->when($request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
+            ->when($request->filled('requester_id'), fn ($query) => $query->where('requester_id', $request->integer('requester_id')))
             ->when($request->filled('q'), function ($query) use ($request) {
                 $term = '%'.$request->string('q').'%';
                 $query->where(fn ($nested) => $nested->where('code', 'like', $term)->orWhere('title', 'like', $term));
@@ -49,7 +53,7 @@ class ServiceRequestController extends Controller
     public function show(ServiceRequest $serviceRequest): View
     {
         $this->authorize('view', $serviceRequest);
-        $serviceRequest->load(['requester', 'assignee', 'approvals.approver', 'updates.actor', 'delivery', 'aiCredential']);
+        $serviceRequest->load(['requester', 'department', 'parent', 'template', 'assignee', 'approvals.approver', 'updates.actor', 'delivery', 'aiCredential', 'attachments']);
         $operators = User::permission('manage service requests')->orderBy('name')->get();
 
         return view('admin.requests.show', compact('serviceRequest', 'operators'));

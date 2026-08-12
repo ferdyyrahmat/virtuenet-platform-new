@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\RequestAttachmentController;
 use App\Http\Controllers\System\Profile\ProfileController;
 use App\Http\Controllers\System\Profile\SanctumTokenController;
 use App\Http\Controllers\User\AiCredentialController;
@@ -34,6 +35,7 @@ Route::prefix('v1')->name('v1.')->middleware(['auth'])->group(function () {
         Route::post('{serviceRequest}/comments', [ServiceRequestController::class, 'comment'])->name('comments.store');
         Route::post('{serviceRequest}/cancel', [ServiceRequestController::class, 'cancel'])->name('cancel');
     });
+    Route::get('request-attachments/{attachment}', RequestAttachmentController::class)->name('request-attachments.download');
 
     Route::get('ai-usage', [AiUsageController::class, 'index'])->name('ai-usage.index');
     Route::get('ai-usage/data', [AiUsageController::class, 'data'])->name('ai-usage.data');

@@ -11,6 +11,7 @@ use App\Services\LarkService;
 use App\Services\ServiceRequestWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -82,6 +83,8 @@ class LarkApprovalSyncTest extends TestCase
         $this->assertSame($user->id, $request->requester_id);
         $this->assertSame('approved', $request->status->value);
         $this->assertSame('integration', $request->type->value);
+        $this->assertSame('ERP integration', data_get($request->lark_form_snapshot, '1.value'));
+        $this->assertStringNotContainsString('ERP integration', DB::table('service_requests')->where('id', $request->id)->value('lark_form_snapshot'));
         $this->assertSame(1, IntegrationEvent::where('provider', 'lark')->count());
     }
 

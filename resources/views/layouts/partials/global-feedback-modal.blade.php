@@ -46,6 +46,12 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label fw-semibold fs-13" for="ticket-application">Application / service</label>
+                        <input id="ticket-application" type="text" class="form-control" name="application_reference" maxlength="160" required placeholder="e.g. VirtueNet Platform">
+                        <div class="form-text">Name the system where the issue occurred.</div>
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label fw-semibold fs-13">Subject / Issue Summary</label>
                         <input type="text" class="form-control" name="subject" required placeholder="e.g. Mobile profile menu button overflow">
                     </div>
@@ -57,6 +63,16 @@
                             <option value="medium" selected>🟡 Medium (Standard issue)</option>
                             <option value="high">🔴 High (Feature blocked)</option>
                             <option value="urgent">🔥 Urgent (Critical system failure)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold fs-13" for="ticket-severity">Operational impact</label>
+                        <select id="ticket-severity" class="form-select" name="severity" required>
+                            <option value="low">Low — cosmetic or minor inconvenience</option>
+                            <option value="medium" selected>Medium — workflow degraded</option>
+                            <option value="high">High — important work blocked</option>
+                            <option value="critical">Critical — outage, security, or data risk</option>
                         </select>
                     </div>
 
