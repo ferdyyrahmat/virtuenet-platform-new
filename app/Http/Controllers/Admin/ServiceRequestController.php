@@ -32,6 +32,9 @@ class ServiceRequestController extends Controller
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('approval_status'), fn ($query) => $query->where('approval_status', $request->string('approval_status')))
             ->when($request->filled('fulfilment_status'), fn ($query) => $query->where('fulfilment_status', $request->string('fulfilment_status')))
+            ->when($request->string('view')->toString() === 'active', fn ($query) => $query->whereIn('status', [ServiceRequestStatus::Submitted, ServiceRequestStatus::UnderReview, ServiceRequestStatus::Approved, ServiceRequestStatus::InProgress, ServiceRequestStatus::WaitingExternal]))
+            ->when($request->string('view')->toString() === 'review', fn ($query) => $query->whereIn('approval_status', ['submitted', 'in_approval']))
+            ->when($request->string('sync')->toString() === 'drift', fn ($query) => $query->where('approval_source', 'lark')->where('approval_sync_status', '!=', 'synced'))
             ->when($request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
             ->when($request->filled('requester_id'), fn ($query) => $query->where('requester_id', $request->integer('requester_id')))
             ->when($request->filled('q'), function ($query) use ($request) {
@@ -53,7 +56,7 @@ class ServiceRequestController extends Controller
     public function show(ServiceRequest $serviceRequest): View
     {
         $this->authorize('view', $serviceRequest);
-        $serviceRequest->load(['requester', 'department', 'parent', 'template', 'assignee', 'approvals.approver', 'updates.actor', 'delivery', 'aiCredential', 'subscription', 'attachments']);
+        $serviceRequest->load(['requester', 'department', 'parent', 'template', 'assignee', 'approvals.approver', 'updates.actor', 'delivery', 'aiCredential', 'subscription.currentVersion', 'subscription.evidences', 'financialEntries', 'attachments']);
         $operators = User::permission('manage service requests')->orderBy('name')->get();
 
         return view('admin.requests.show', compact('serviceRequest', 'operators'));

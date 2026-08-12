@@ -34,6 +34,8 @@ class SubscriptionController extends Controller
             })
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('department_id'), fn ($query) => $query->where('department_id', $request->integer('department_id')))
+            ->when($request->filled('payment_instrument_id'), fn ($query) => $query->where('payment_instrument_id', $request->integer('payment_instrument_id')))
+            ->when($request->string('evidence')->toString() === 'missing', fn ($query) => $query->whereDoesntHave('evidences'))
             ->when($request->filled('renewal_window'), fn ($query) => $query->whereBetween('next_renewal_date', [today(), today()->addDays($request->integer('renewal_window'))]))
             ->orderByRaw('next_renewal_date is null, next_renewal_date')
             ->paginate(20)->withQueryString();

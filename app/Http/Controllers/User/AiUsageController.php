@@ -13,7 +13,9 @@ class AiUsageController extends Controller
 {
     public function index(Request $request): View
     {
-        $credentials = $request->user()->aiCredentials()->with(['user', 'request'])->latest()->get();
+        $credentials = $request->user()->aiCredentials()->with(['user', 'request'])
+            ->when($request->string('attention')->toString() === 'expiring', fn ($query) => $query->where('status', 'active')->whereBetween('expires_at', [now(), now()->addDays(30)]))
+            ->latest()->get();
 
         return view('ai-usage.index', [
             'credentials' => $credentials,

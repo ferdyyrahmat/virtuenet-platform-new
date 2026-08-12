@@ -12,10 +12,12 @@ use Illuminate\View\View;
 
 class AiUsageController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         return view('ai-usage.index', [
-            'credentials' => AiAccessCredential::with(['user', 'request'])->latest()->get(),
+            'credentials' => AiAccessCredential::with(['user', 'request'])
+                ->when($request->string('attention')->toString() === 'expiring', fn ($query) => $query->where('status', 'active')->whereBetween('expires_at', [now(), now()->addDays(30)]))
+                ->latest()->get(),
             'dataUrl' => route('admin.ai-usage.data'),
             'scopeLabel' => 'Organization AI monitoring',
             'gateway' => ExternalConnection::where('provider', 'litellm')->first(),

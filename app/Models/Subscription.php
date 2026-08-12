@@ -115,6 +115,11 @@ class Subscription extends Model
         return $this->hasMany(SubscriptionEvidence::class);
     }
 
+    public function financialEntries(): HasMany
+    {
+        return $this->hasMany(FinancialEntry::class);
+    }
+
     public function beneficiaries(): BelongsToMany
     {
         return $this->belongsToMany(User::class)->withTimestamps();

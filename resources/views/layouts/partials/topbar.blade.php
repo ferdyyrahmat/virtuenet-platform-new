@@ -4,7 +4,7 @@
         <div class="d-flex justify-content-between">
             <ul class="list-unstyled topnav-menu mb-0 d-flex align-items-center">
                 <li>
-                    <button class="button-toggle-menu nav-link">
+                    <button class="button-toggle-menu nav-link" type="button" aria-label="Toggle navigation menu">
                         <i data-feather="menu" class="noti-icon"></i>
                     </button>
                 </li>
@@ -42,14 +42,14 @@
 
                 <!-- Quick Feedback Icon Button -->
                 <li class="d-none d-sm-flex me-1">
-                    <button type="button" class="btn nav-link text-primary" data-bs-toggle="modal" data-bs-target="#global-feedback-modal" title="Submit Feedback or Report Bug">
+                    <button type="button" class="btn nav-link text-primary" data-bs-toggle="modal" data-bs-target="#global-feedback-modal" title="Submit Feedback or Report Bug" aria-label="Submit feedback or report a bug">
                         <i class="mdi mdi-message-outline fs-20 align-middle"></i>
                     </button>
                 </li>
 
                 <!-- Theme Toggle (Dark/Light Mode) -->
                 <li class="d-none d-sm-flex me-1">
-                    <button type="button" class="btn nav-link" id="btn-theme-toggle" title="{{ session('theme') === 'dark' ? __('messages.light_mode') : __('messages.dark_mode') }}">
+                    <button type="button" class="btn nav-link" id="btn-theme-toggle" title="{{ session('theme') === 'dark' ? __('messages.light_mode') : __('messages.dark_mode') }}" aria-label="{{ session('theme') === 'dark' ? __('messages.light_mode') : __('messages.dark_mode') }}">
                         <i id="theme-toggle-icon" class="mdi {{ session('theme') === 'dark' ? 'mdi-weather-sunny' : 'mdi-weather-night' }} fs-20 align-middle"></i>
                     </button>
                 </li>
@@ -62,13 +62,13 @@
                 </li>
 
                 <li class="d-none d-sm-flex">
-                    <button type="button" class="btn nav-link" data-toggle="fullscreen">
+                    <button type="button" class="btn nav-link" data-toggle="fullscreen" aria-label="Toggle fullscreen">
                         <i data-feather="maximize" class="align-middle fullscreen noti-icon"></i>
                     </button>
                 </li>
 
                 <li class="dropdown notification-list topbar-dropdown">
-                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="false" aria-expanded="false" id="topbar-bell-btn">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="false" aria-expanded="false" aria-label="Open notifications" id="topbar-bell-btn">
                         <i data-feather="bell" class="noti-icon"></i>
                         <span class="badge bg-danger rounded-circle noti-icon-badge" id="topbar-bell-count" style="display: none;">0</span>
                     </a>
@@ -186,6 +186,11 @@
         var searchTimer = null;
 
         if (searchInput && searchDropdown && searchContent) {
+            var escapeHtml = function(value) {
+                var node = document.createElement('div');
+                node.textContent = value == null ? '' : String(value);
+                return node.innerHTML;
+            };
             searchInput.addEventListener('input', function() {
                 var q = this.value.trim();
                 clearTimeout(searchTimer);
@@ -208,18 +213,18 @@
                                 res.results.forEach(function(item) {
                                     if (item.category !== currentCategory) {
                                         currentCategory = item.category;
-                                        html += '<div class="dropdown-header text-uppercase fs-11 fw-bold text-muted py-1 px-3 mt-1">' + currentCategory + '</div>';
+                                        html += '<div class="dropdown-header text-uppercase fs-11 fw-bold text-muted py-1 px-3 mt-1">' + escapeHtml(currentCategory) + '</div>';
                                     }
 
                                     var avatarHtml = item.avatar 
-                                        ? '<img src="' + item.avatar + '" class="rounded-circle me-2" width="24" height="24" style="object-fit: cover;">'
-                                        : '<i class="mdi ' + (item.icon || 'mdi-magnify') + ' me-2 fs-16 text-primary align-middle"></i>';
+                                        ? '<img src="' + escapeHtml(item.avatar) + '" class="rounded-circle me-2" width="24" height="24" style="object-fit: cover;">'
+                                        : '<i class="mdi ' + escapeHtml(item.icon || 'mdi-magnify') + ' me-2 fs-16 text-primary align-middle"></i>';
 
-                                    html += '<a href="' + item.url + '" class="dropdown-item d-flex align-items-center py-2 px-3 rounded-2 mb-1 search-result-item">';
+                                    html += '<a href="' + escapeHtml(item.url) + '" class="dropdown-item d-flex align-items-center py-2 px-3 rounded-2 mb-1 search-result-item">';
                                     html += avatarHtml;
                                     html += '<div class="overflow-hidden">';
-                                    html += '<div class="fw-semibold text-body fs-13 text-truncate">' + item.title + '</div>';
-                                    html += '<div class="fs-11 text-muted text-truncate">' + item.subtitle + '</div>';
+                                    html += '<div class="fw-semibold text-body fs-13 text-truncate">' + escapeHtml(item.title) + '</div>';
+                                    html += '<div class="fs-11 text-muted text-truncate">' + escapeHtml(item.subtitle) + '</div>';
                                     html += '</div>';
                                     html += '</a>';
                                 });

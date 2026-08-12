@@ -22,6 +22,8 @@ class ServiceRequestController extends Controller
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('approval_status'), fn ($query) => $query->where('approval_status', $request->string('approval_status')))
             ->when($request->filled('fulfilment_status'), fn ($query) => $query->where('fulfilment_status', $request->string('fulfilment_status')))
+            ->when($request->string('view')->toString() === 'active', fn ($query) => $query->whereIn('status', ['submitted', 'under_review', 'approved', 'in_progress', 'waiting_external']))
+            ->when($request->string('view')->toString() === 'review', fn ($query) => $query->whereIn('approval_status', ['submitted', 'in_approval']))
             ->latest()
             ->paginate(12)
             ->withQueryString();
@@ -60,7 +62,7 @@ class ServiceRequestController extends Controller
     public function show(ServiceRequest $serviceRequest): View
     {
         $this->authorize('view', $serviceRequest);
-        $serviceRequest->load(['requester', 'department', 'parent', 'template', 'assignee', 'approvals.approver', 'updates.actor', 'delivery', 'aiCredential', 'attachments']);
+        $serviceRequest->load(['requester', 'department', 'parent', 'template', 'assignee', 'approvals.approver', 'updates.actor', 'delivery', 'aiCredential', 'subscription.currentVersion', 'subscription.evidences', 'financialEntries', 'attachments']);
 
         return view('requests.show', compact('serviceRequest'));
     }

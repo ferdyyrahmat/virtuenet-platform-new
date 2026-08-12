@@ -4,9 +4,21 @@
 <div class="container-fluid platform-page">
     <div class="platform-heading"><div><span class="eyebrow">Single source of truth</span><h4>Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ str($user->name)->before(' ') }}</h4><p>Demand, approvals, delivery, AI budget, and integration health in one operational view.</p></div><a href="{{ route('v1.requests.create') }}" class="btn btn-primary btn-sm"><i class="mdi mdi-plus me-1"></i>New request</a></div>
     <div class="row g-3 mb-4">
-        @foreach([['active','Active requests','clipboard-text-clock-outline','primary'],['review','Waiting review','clipboard-search-outline','warning'],['revision','Needs revision','file-edit-outline','danger'],['completed','Completed','check-decagram-outline','success']] as [$key,$label,$icon,$color])
-            <div class="col-6 col-xl-3"><div class="metric-card"><i class="mdi mdi-{{ $icon }} text-{{ $color }}"></i><span>{{ $label }}</span><strong>{{ $stats[$key] }}</strong></div></div>
+        @foreach([['active','Active requests','clipboard-text-clock-outline','primary',['view'=>'active']],['review','Waiting review','clipboard-search-outline','warning',['view'=>'review']],['revision','Needs revision','file-edit-outline','danger',['status'=>'revision_requested']],['completed','Completed','check-decagram-outline','success',['status'=>'completed']]] as [$key,$label,$icon,$color,$filter])
+            <div class="col-6 col-xl-3"><a href="{{ route($requestIndex, $filter) }}" class="metric-card"><i class="mdi mdi-{{ $icon }} text-{{ $color }}"></i><span>{{ $label }}</span><strong>{{ $stats[$key] }}</strong></a></div>
         @endforeach
+    </div>
+    <div class="card platform-card mb-4">
+        <div class="card-header platform-card-header"><div><strong>Action center</strong><small>Only exceptions relevant to your access are shown here.</small></div><span class="badge bg-{{ $exceptions->isEmpty() ? 'success' : 'danger' }}-subtle text-{{ $exceptions->isEmpty() ? 'success' : 'danger' }}">{{ $exceptions->isEmpty() ? 'All clear' : $exceptions->sum('count').' open' }}</span></div>
+        <div class="card-body p-3">@if($exceptions->isEmpty())<div class="empty-state compact"><i class="mdi mdi-check-circle-outline"></i><strong>No operational exceptions require action.</strong></div>@else<div class="exception-grid">@foreach($exceptions as $exception)<a href="{{ $exception['url'] }}" class="exception-item"><span class="exception-icon text-{{ $exception['tone'] }}"><i class="mdi mdi-alert-circle-outline"></i></span><span>{{ $exception['label'] }}</span><strong class="text-{{ $exception['tone'] }}">{{ $exception['count'] }}</strong><i class="mdi mdi-chevron-right"></i></a>@endforeach</div>@endif</div>
+    </div>
+    <div class="row g-3 mb-4">
+        @can('view finance')
+            @foreach([['Monthly recurring','IDR '.number_format((float)$financeSnapshot['monthlyCommitment'],0),'calendar-month',route('admin.finance.index')],['Annualized commitment','IDR '.number_format((float)$financeSnapshot['annualizedCommitment'],0),'calendar-range',route('admin.finance.index')],['Actual this month','IDR '.number_format((float)$financeSnapshot['actualSpend'],0),'cash-check',route('admin.finance.index')],['Renewals 30 / 60 / 90',$stats['renewals_30'].' / '.$stats['renewals_60'].' / '.$stats['renewals_90'],'calendar-alert',route('admin.subscriptions.index',['renewal_window'=>90])]] as [$label,$value,$icon,$url])<div class="col-md-6 col-xl-3"><a href="{{ $url }}" class="snapshot-card"><i class="mdi mdi-{{ $icon }}"></i><span>{{ $label }}</span><strong>{{ $value }}</strong></a></div>@endforeach
+        @else
+            <div class="col-md-6"><a href="{{ route('v1.subscriptions.index') }}" class="snapshot-card"><i class="mdi mdi-credit-card-refresh-outline"></i><span>My active subscriptions</span><strong>{{ $stats['subscriptions'] }}</strong></a></div>
+            <div class="col-md-6"><a href="{{ route('v1.subscriptions.index') }}" class="snapshot-card"><i class="mdi mdi-calendar-alert-outline"></i><span>Renewing in 30 days</span><strong>{{ $stats['renewals_30'] }}</strong></a></div>
+        @endcan
     </div>
     <div class="card platform-card ai-overview-card mb-4">
         <div class="card-header platform-card-header"><div><strong>AI access overview</strong><small>Current token allocation, spend snapshot, and LiteLLM gateway readiness.</small></div><a href="{{ $user->can('view ai usage') ? route('admin.ai-usage.index') : route('v1.ai-usage.index') }}" class="btn btn-light btn-sm">Open monitoring <i class="mdi mdi-arrow-right ms-1"></i></a></div>
