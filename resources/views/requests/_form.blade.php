@@ -106,11 +106,13 @@
     <div class="request-detail-panel mt-4" data-request-section="saas_subscription">
         <h6>Subscription details</h6>
         <div class="row g-3">
-            <div class="col-md-4"><label class="form-label" for="saas-product">Product</label><input id="saas-product" name="details[product]" class="form-control" value="{{ data_get($details, 'product') }}"></div>
+            <div class="col-md-4"><label class="form-label" for="saas-vendor-name">Vendor</label><input id="saas-vendor-name" name="details[vendor]" class="form-control" value="{{ data_get($details, 'vendor') }}" placeholder="OpenAI"></div>
+            <div class="col-md-4"><label class="form-label" for="saas-product">Product</label><input id="saas-product" name="details[product]" class="form-control" value="{{ data_get($details, 'product') }}" placeholder="ChatGPT Plus"></div>
             <div class="col-md-4"><label class="form-label" for="saas-plan">Plan</label><input id="saas-plan" name="details[plan]" class="form-control" value="{{ data_get($details, 'plan') }}"></div>
+            <div class="col-md-4"><label class="form-label" for="saas-category">Category</label><input id="saas-category" name="details[category]" class="form-control" value="{{ data_get($details, 'category') }}" placeholder="AI productivity"></div>
             <div class="col-md-4"><label class="form-label" for="saas-seats">Seats</label><input id="saas-seats" type="number" min="1" name="details[seats]" class="form-control" value="{{ data_get($details, 'seats', 1) }}"></div>
-            <div class="col-md-4"><label class="form-label" for="saas-cycle">Billing cycle</label><select id="saas-cycle" name="details[billing_cycle]" class="form-select">@foreach(['monthly'=>'Monthly','quarterly'=>'Quarterly','yearly'=>'Yearly','one_time'=>'One-time'] as $value=>$label)<option value="{{ $value }}" @selected(data_get($details, 'billing_cycle') === $value)>{{ $label }}</option>@endforeach</select></div>
-            <div class="col-md-8"><label class="form-label" for="saas-vendor">Vendor URL <span class="text-muted">(optional)</span></label><input id="saas-vendor" type="url" name="details[vendor_url]" class="form-control" value="{{ data_get($details, 'vendor_url') }}"></div>
+            <div class="col-md-4"><label class="form-label" for="saas-cycle">Billing cycle</label><select id="saas-cycle" name="details[billing_cycle]" class="form-select">@foreach(['monthly'=>'Monthly','quarterly'=>'Quarterly','annual'=>'Annual','multi_year'=>'Multi-year','usage_based'=>'Usage based','custom'=>'Custom'] as $value=>$label)<option value="{{ $value }}" @selected(data_get($details, 'billing_cycle') === $value)>{{ $label }}</option>@endforeach</select></div>
+            <div class="col-12"><label class="form-label" for="saas-vendor">Vendor URL <span class="text-muted">(optional)</span></label><input id="saas-vendor" type="url" name="details[vendor_url]" class="form-control" value="{{ data_get($details, 'vendor_url') }}"></div>
             <div class="col-12"><label class="form-label" for="saas-reason">Business reason</label><textarea id="saas-reason" name="details[business_reason]" class="form-control" rows="3">{{ data_get($details, 'business_reason') }}</textarea></div>
         </div>
     </div>

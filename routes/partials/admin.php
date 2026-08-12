@@ -4,7 +4,9 @@ use App\Http\Controllers\Admin\AiCredentialController;
 use App\Http\Controllers\Admin\AiUsageController as AdminAiUsageController;
 use App\Http\Controllers\Admin\ApplicationController;
 use App\Http\Controllers\Admin\ConnectionController;
+use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\ServiceRequestController as AdminServiceRequestController;
+use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\System\AuditLog\AuditLogController;
 use App\Http\Controllers\System\Directory\DirectoryController;
 use App\Http\Controllers\System\Notification\NotificationController;
@@ -47,6 +49,28 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     });
     Route::redirect('github-sync', '/admin/applications')->name('github-sync.redirect');
     Route::redirect('github-tasks', '/admin/applications')->name('github-tasks.index');
+
+    Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
+        Route::get('', [SubscriptionController::class, 'index'])->middleware('permission:view subscriptions')->name('index');
+        Route::post('', [SubscriptionController::class, 'store'])->middleware('permission:manage subscriptions')->name('store');
+        Route::post('{subscription}/transition', [SubscriptionController::class, 'transition'])->middleware('permission:manage subscriptions')->name('transition');
+        Route::post('{subscription}/renewals', [SubscriptionController::class, 'proposeRenewal'])->middleware('permission:manage subscriptions')->name('renewals.store');
+        Route::post('versions/{version}/approve', [SubscriptionController::class, 'approveVersion'])->middleware('permission:review subscription finances')->name('versions.approve');
+        Route::post('renewals/{decision}/review', [SubscriptionController::class, 'reviewRenewal'])->middleware('permission:review subscription finances')->name('renewals.review');
+        Route::post('instruments', [SubscriptionController::class, 'storeInstrument'])->middleware('permission:manage subscriptions')->name('instruments.store');
+        Route::post('{subscription}/evidence', [SubscriptionController::class, 'uploadEvidence'])->middleware('permission:manage subscriptions')->name('evidence.store');
+    });
+
+    Route::prefix('finance')->name('finance.')->group(function () {
+        Route::get('', [FinanceController::class, 'index'])->middleware('permission:view finance')->name('index');
+        Route::post('entries', [FinanceController::class, 'storeEntry'])->middleware('permission:manage finance')->name('entries.store');
+        Route::post('statements', [FinanceController::class, 'importStatement'])->middleware('permission:manage finance')->name('statements.import');
+        Route::post('statement-lines/{line}/reconcile', [FinanceController::class, 'reconcile'])->middleware('permission:manage finance')->name('reconcile');
+        Route::post('budgets', [FinanceController::class, 'storeBudget'])->middleware('permission:manage finance')->name('budgets.store');
+        Route::post('budgets/{budget}/review', [FinanceController::class, 'reviewBudget'])->middleware('permission:review subscription finances')->name('budgets.review');
+        Route::post('sync-ai', [FinanceController::class, 'syncAi'])->middleware('permission:manage finance')->name('sync-ai');
+        Route::get('export', [FinanceController::class, 'export'])->middleware('permission:export finance reports')->name('export');
+    });
 
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('', [UserController::class, 'index'])

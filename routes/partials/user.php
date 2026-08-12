@@ -7,6 +7,7 @@ use App\Http\Controllers\User\AiCredentialController;
 use App\Http\Controllers\User\AiUsageController;
 use App\Http\Controllers\User\ServiceCatalogController;
 use App\Http\Controllers\User\ServiceRequestController;
+use App\Http\Controllers\User\SubscriptionController;
 use App\Http\Controllers\User\UserTicketController;
 
 Route::prefix('v1')->name('v1.')->middleware(['auth'])->group(function () {
@@ -41,7 +42,9 @@ Route::prefix('v1')->name('v1.')->middleware(['auth'])->group(function () {
     Route::get('ai-usage', [AiUsageController::class, 'index'])->name('ai-usage.index');
     Route::get('ai-usage/data', [AiUsageController::class, 'data'])->name('ai-usage.data');
     Route::get('services', [ServiceCatalogController::class, 'index'])->name('services.index');
+    Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
     Route::post('ai-credentials/{credential}/reveal', [AiCredentialController::class, 'reveal'])->name('ai-credentials.reveal');
 });
 
 Route::get('dashboard/my-services', [ServiceCatalogController::class, 'index'])->middleware('auth')->name('dashboard.my-services');
+Route::get('subscription-evidence/{evidence}', [App\Http\Controllers\Admin\SubscriptionController::class, 'evidence'])->middleware('auth')->name('subscription-evidence.download');

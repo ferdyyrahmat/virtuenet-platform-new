@@ -53,7 +53,7 @@ class ServiceRequestController extends Controller
     public function show(ServiceRequest $serviceRequest): View
     {
         $this->authorize('view', $serviceRequest);
-        $serviceRequest->load(['requester', 'department', 'parent', 'template', 'assignee', 'approvals.approver', 'updates.actor', 'delivery', 'aiCredential', 'attachments']);
+        $serviceRequest->load(['requester', 'department', 'parent', 'template', 'assignee', 'approvals.approver', 'updates.actor', 'delivery', 'aiCredential', 'subscription', 'attachments']);
         $operators = User::permission('manage service requests')->orderBy('name')->get();
 
         return view('admin.requests.show', compact('serviceRequest', 'operators'));

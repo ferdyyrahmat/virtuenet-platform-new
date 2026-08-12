@@ -35,8 +35,10 @@ class ServiceRequestDetailWriter
                 'access_status' => data_get($details, 'access_status'),
             ]],
             ServiceRequestType::SaasSubscription => ['subscription_purchase_request_details', [
+                'vendor' => data_get($details, 'vendor'),
                 'product' => data_get($details, 'product'),
                 'plan' => data_get($details, 'plan'),
+                'category' => data_get($details, 'category'),
                 'seats' => data_get($details, 'seats'),
                 'billing_cycle' => data_get($details, 'billing_cycle'),
                 'vendor_url' => data_get($details, 'vendor_url'),

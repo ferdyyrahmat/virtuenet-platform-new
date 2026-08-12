@@ -113,10 +113,12 @@ class StoreServiceRequestRequest extends FormRequest
                 'details.access_status' => ['required', Rule::in(['available', 'partial', 'not_available', 'unknown'])],
             ],
             ServiceRequestType::SaasSubscription => [
+                'details.vendor' => ['required', 'string', 'max:160'],
                 'details.product' => ['required', 'string', 'max:160'],
                 'details.plan' => ['required', 'string', 'max:160'],
+                'details.category' => ['required', 'string', 'max:100'],
                 'details.seats' => ['required', 'integer', 'min:1', 'max:100000'],
-                'details.billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'yearly', 'one_time'])],
+                'details.billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'annual', 'multi_year', 'usage_based', 'custom'])],
                 'details.vendor_url' => ['nullable', 'url:http,https', 'max:2048'],
                 'details.business_reason' => ['required', 'string', 'max:3000'],
             ],

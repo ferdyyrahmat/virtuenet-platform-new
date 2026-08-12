@@ -34,6 +34,7 @@
 
                 <li><a href="{{ route('v1.requests.index') }}" class="tp-link"><i data-feather="clipboard"></i><span>My requests</span></a></li>
                 <li><a href="{{ route('v1.services.index') }}" class="tp-link"><i data-feather="grid"></i><span>Services</span></a></li>
+                <li><a href="{{ route('v1.subscriptions.index') }}" class="tp-link"><i data-feather="credit-card"></i><span>My subscriptions</span></a></li>
                 <li><a href="{{ auth()->user()->can('view ai usage') ? route('admin.ai-usage.index') : route('v1.ai-usage.index') }}" class="tp-link"><i data-feather="activity"></i><span>AI Monitoring</span></a></li>
                 <li><a href="{{ route('v1.tickets.index') }}" class="tp-link"><i data-feather="life-buoy"></i><span>{{ __('messages.my_tickets') }}</span></a></li>
 

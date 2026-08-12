@@ -2,13 +2,13 @@
     $user = auth()->user();
     $can = fn (string $permission): bool => $user?->isDeveloper() || $user?->can($permission);
     $routeName = request()->route()?->getName() ?? '';
-    $showPlatformOps = $can('view service requests') || $can('view delivery tasks');
+    $showPlatformOps = $can('view service requests') || $can('view delivery tasks') || $can('view subscriptions') || $can('view finance');
     $showSystem = $can('view roles and permissions') || $can('view users') || $can('manage integrations') || $can('view audit logs') || $can('view directory');
 @endphp
 
 @if($showPlatformOps)
 <li class="menu-title">Platform operations</li>
-<li><a href="#sidebarPlatform" data-bs-toggle="collapse" aria-expanded="{{ Str::startsWith($routeName, ['admin.requests.', 'admin.applications.']) ? 'true' : 'false' }}"><i data-feather="layers"></i><span>Operations</span><span class="menu-arrow"></span></a><div class="collapse {{ Str::startsWith($routeName, ['admin.requests.', 'admin.applications.']) ? 'show' : '' }}" id="sidebarPlatform"><ul class="nav-second-level">@if($can('view service requests'))<li><a href="{{ route('admin.requests.index') }}" class="tp-link">Request queue</a></li>@endif @if($can('view delivery tasks'))<li><a href="{{ route('admin.applications.index') }}" class="tp-link">Applications</a></li>@endif</ul></div></li>
+<li><a href="#sidebarPlatform" data-bs-toggle="collapse" aria-expanded="{{ Str::startsWith($routeName, ['admin.requests.', 'admin.applications.', 'admin.subscriptions.', 'admin.finance.']) ? 'true' : 'false' }}"><i data-feather="layers"></i><span>Operations</span><span class="menu-arrow"></span></a><div class="collapse {{ Str::startsWith($routeName, ['admin.requests.', 'admin.applications.', 'admin.subscriptions.', 'admin.finance.']) ? 'show' : '' }}" id="sidebarPlatform"><ul class="nav-second-level">@if($can('view service requests'))<li><a href="{{ route('admin.requests.index') }}" class="tp-link">Request queue</a></li>@endif @if($can('view delivery tasks'))<li><a href="{{ route('admin.applications.index') }}" class="tp-link">Applications</a></li>@endif @if($can('view subscriptions'))<li><a href="{{ route('admin.subscriptions.index') }}" class="tp-link">Subscriptions</a></li>@endif @if($can('view finance'))<li><a href="{{ route('admin.finance.index') }}" class="tp-link">Finance</a></li>@endif</ul></div></li>
 @endif
 
 @if($showSystem)

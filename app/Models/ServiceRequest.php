@@ -72,6 +72,11 @@ class ServiceRequest extends Model
         return $this->hasOne(ServiceDelivery::class);
     }
 
+    public function subscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class);
+    }
+
     public function aiCredential(): HasOne
     {
         return $this->hasOne(AiAccessCredential::class);

@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\ProbeApplicationHealth;
+use App\Jobs\ProcessSubscriptionRenewals;
 use App\Jobs\SyncCoolifyInventory;
 use App\Jobs\SyncGithubTasks;
 use App\Models\DeployedApplication;
@@ -40,4 +41,10 @@ Schedule::job(new SyncCoolifyInventory)
 Schedule::call(fn () => ServiceHealthCheck::where('checked_at', '<', now()->subDays(90))->delete())
     ->name('prune-service-health-checks')
     ->daily()
+    ->onOneServer();
+Schedule::job(new ProcessSubscriptionRenewals)
+    ->name('process-subscription-renewals')
+    ->dailyAt('08:00')
+    ->timezone('Asia/Jakarta')
+    ->withoutOverlapping()
     ->onOneServer();
