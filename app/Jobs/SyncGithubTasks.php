@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\ExternalConnection;
 use App\Models\GithubTask;
 use App\Models\IntegrationEvent;
+use App\Services\GithubLarkSyncService;
 use App\Services\GithubTaskService;
 use App\Services\LarkService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -24,8 +25,15 @@ class SyncGithubTasks implements ShouldQueue
         return [(new WithoutOverlapping('github-lark-sync'))->expireAfter(300)];
     }
 
-    public function handle(GithubTaskService $github, LarkService $lark): void
+    public function handle(GithubTaskService $github, GithubLarkSyncService $sync, LarkService $lark): void
     {
+        if ($sync->configured()) {
+            $sync->syncAll();
+            IntegrationEvent::where('provider', 'github')->where('status', 'queued')->update(['status' => 'processed', 'processed_at' => now()]);
+
+            return;
+        }
+
         if (! $github->configured()) {
             return;
         }
@@ -42,6 +50,7 @@ class SyncGithubTasks implements ShouldQueue
                     'state' => $issue['state'],
                     'labels' => collect($issue['labels'] ?? [])->pluck('name')->all(),
                     'assignee' => data_get($issue, 'assignee.login'),
+                    'mandays' => preg_match('/mandays\s*:\s*([0-9]+(?:\.[0-9]+)?)/i', (string) ($issue['body'] ?? ''), $matches) ? (float) $matches[1] : null,
                     'github_url' => $issue['html_url'],
                     'remote_updated_at' => $issue['updated_at'] ?? null,
                     'last_synced_at' => now(),

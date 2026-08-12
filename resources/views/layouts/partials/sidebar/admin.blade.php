@@ -8,7 +8,7 @@
 
 @if($showPlatformOps)
 <li class="menu-title">Platform operations</li>
-<li><a href="#sidebarPlatform" data-bs-toggle="collapse" aria-expanded="{{ Str::startsWith($routeName, ['admin.requests.', 'admin.github-tasks.']) ? 'true' : 'false' }}"><i data-feather="layers"></i><span>Operations</span><span class="menu-arrow"></span></a><div class="collapse {{ Str::startsWith($routeName, ['admin.requests.', 'admin.github-tasks.']) ? 'show' : '' }}" id="sidebarPlatform"><ul class="nav-second-level">@if($can('view service requests'))<li><a href="{{ route('admin.requests.index') }}" class="tp-link">Request queue</a></li>@endif @if($can('view delivery tasks'))<li><a href="{{ route('admin.github-tasks.index') }}" class="tp-link">GitHub–Lark tasks</a></li>@endif</ul></div></li>
+<li><a href="#sidebarPlatform" data-bs-toggle="collapse" aria-expanded="{{ Str::startsWith($routeName, ['admin.requests.', 'admin.applications.']) ? 'true' : 'false' }}"><i data-feather="layers"></i><span>Operations</span><span class="menu-arrow"></span></a><div class="collapse {{ Str::startsWith($routeName, ['admin.requests.', 'admin.applications.']) ? 'show' : '' }}" id="sidebarPlatform"><ul class="nav-second-level">@if($can('view service requests'))<li><a href="{{ route('admin.requests.index') }}" class="tp-link">Request queue</a></li>@endif @if($can('view delivery tasks'))<li><a href="{{ route('admin.applications.index') }}" class="tp-link">Applications</a></li>@endif</ul></div></li>
 @endif
 
 @if($showSystem)

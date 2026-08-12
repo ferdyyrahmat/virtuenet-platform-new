@@ -2,8 +2,8 @@
 
 use App\Http\Controllers\Admin\AiCredentialController;
 use App\Http\Controllers\Admin\AiUsageController as AdminAiUsageController;
+use App\Http\Controllers\Admin\ApplicationController;
 use App\Http\Controllers\Admin\ConnectionController;
-use App\Http\Controllers\Admin\GithubTaskController;
 use App\Http\Controllers\Admin\ServiceRequestController as AdminServiceRequestController;
 use App\Http\Controllers\System\AuditLog\AuditLogController;
 use App\Http\Controllers\System\Directory\DirectoryController;
@@ -36,10 +36,14 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
         Route::post('{provider}/test', [ConnectionController::class, 'test'])->name('test');
     });
 
-    Route::prefix('github-tasks')->name('github-tasks.')->group(function () {
-        Route::get('', [GithubTaskController::class, 'index'])->middleware('permission:view delivery tasks')->name('index');
-        Route::post('sync', [GithubTaskController::class, 'sync'])->middleware('permission:sync delivery tasks')->name('sync');
+    Route::prefix('applications')->name('applications.')->group(function () {
+        Route::get('', [ApplicationController::class, 'index'])->middleware('permission:view delivery tasks')->name('index');
+        Route::post('', [ApplicationController::class, 'upsert'])->middleware('permission:manage integrations')->name('upsert');
+        Route::delete('', [ApplicationController::class, 'destroy'])->middleware('permission:manage integrations')->name('destroy');
+        Route::post('sync', [ApplicationController::class, 'sync'])->middleware('permission:sync delivery tasks')->name('sync');
     });
+    Route::redirect('github-sync', '/admin/applications')->name('github-sync.redirect');
+    Route::redirect('github-tasks', '/admin/applications')->name('github-tasks.index');
 
     Route::prefix('users')->name('users.')->group(function () {
         Route::get('', [UserController::class, 'index'])
