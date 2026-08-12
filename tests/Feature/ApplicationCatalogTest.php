@@ -26,6 +26,8 @@ class ApplicationCatalogTest extends TestCase
             'repo_full_name' => 'rizub/example-app',
             'display_name' => 'Example App',
             'domain' => 'example.virtuenet.space',
+            'environment' => 'virtuenet',
+            'health_path' => '/health',
             'sync_enabled' => true,
             'backup_enabled' => true,
             'cost_center' => 'IT-001',

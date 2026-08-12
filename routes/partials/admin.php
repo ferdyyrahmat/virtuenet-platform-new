@@ -41,6 +41,9 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
         Route::post('', [ApplicationController::class, 'upsert'])->middleware('permission:manage integrations')->name('upsert');
         Route::delete('', [ApplicationController::class, 'destroy'])->middleware('permission:manage integrations')->name('destroy');
         Route::post('sync', [ApplicationController::class, 'sync'])->middleware('permission:sync delivery tasks')->name('sync');
+        Route::post('sync-inventory', [ApplicationController::class, 'syncInventory'])->middleware('permission:manage integrations')->name('sync-inventory');
+        Route::post('nodes', [ApplicationController::class, 'upsertNode'])->middleware('permission:manage integrations')->name('nodes.upsert');
+        Route::delete('nodes/{node}', [ApplicationController::class, 'destroyNode'])->middleware('permission:manage integrations')->name('nodes.destroy');
     });
     Route::redirect('github-sync', '/admin/applications')->name('github-sync.redirect');
     Route::redirect('github-tasks', '/admin/applications')->name('github-tasks.index');

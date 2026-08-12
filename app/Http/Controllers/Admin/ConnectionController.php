@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ExternalConnection;
+use App\Services\CoolifyService;
 use App\Services\GithubLarkSyncService;
 use App\Services\GithubTaskService;
 use App\Services\LarkService;
@@ -24,7 +25,7 @@ class ConnectionController extends Controller
 
     public function update(Request $request, string $provider): JsonResponse
     {
-        abort_unless(in_array($provider, ['litellm', 'github', 'github_lark_sync', 'lark'], true), 404);
+        abort_unless(in_array($provider, ['litellm', 'github', 'github_lark_sync', 'coolify', 'lark'], true), 404);
         $validated = $request->validate([
             'label' => ['required', 'string', 'max:100'],
             'base_url' => ['nullable', 'url:http,https', 'max:2048'],
@@ -42,6 +43,7 @@ class ConnectionController extends Controller
                 'litellm' => 'master_key',
                 'lark' => 'app_id',
                 'github_lark_sync' => 'api_key',
+                'coolify' => 'token',
                 default => 'token',
             }] = $validated['secret'];
         }
@@ -72,7 +74,7 @@ class ConnectionController extends Controller
         return response()->json(['success' => true, 'message' => ucfirst($provider).' connection saved securely.', 'redirect' => route('admin.connections.index')]);
     }
 
-    public function test(string $provider, LiteLlmService $liteLlm, GithubTaskService $github, GithubLarkSyncService $githubLarkSync, LarkService $lark): JsonResponse
+    public function test(string $provider, LiteLlmService $liteLlm, GithubTaskService $github, GithubLarkSyncService $githubLarkSync, CoolifyService $coolify, LarkService $lark): JsonResponse
     {
         $connection = ExternalConnection::where('provider', $provider)->firstOrFail();
 
@@ -81,6 +83,7 @@ class ConnectionController extends Controller
                 'litellm' => $liteLlm->health(),
                 'github' => $github->issues(),
                 'github_lark_sync' => $githubLarkSync->health(),
+                'coolify' => $coolify->health(),
                 'lark' => $lark->tenantAccessToken(),
             };
             $connection->update(['health_status' => 'healthy', 'last_error' => null, 'last_checked_at' => now()]);
