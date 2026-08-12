@@ -18,14 +18,28 @@ class ImpersonationController extends BaseController
         abort_if($user->isDeveloper() || $user->id === $developer->id, 403, 'Developer accounts cannot be impersonated.');
 
         // Rotate the session before switching accounts, then write the marker
-        // afterwards so it cannot be lost by session migration.
+        // before authenticating so the login event listener can detect the
+        // impersonation and avoid recording a separate "login" audit entry.
         $request->session()->regenerate();
-        Auth::login($user);
         $request->session()->put('impersonation', [
             'original_user_id' => $developer->id,
             'original_user_name' => $developer->name,
         ]);
+        Auth::login($user);
         $request->session()->save();
+
+        audit_log(
+            'Impersonation started',
+            'auth.impersonate',
+            'auth',
+            [
+                'target_user_id' => $user->id,
+                'target_user_name' => $user->name,
+                'original_user_id' => $developer->id,
+                'original_user_name' => $developer->name,
+            ],
+            $developer
+        );
 
         return redirect()->route('v1.dashboard')->with('success', "You are now viewing the application as {$user->name}.");
     }
@@ -39,6 +53,18 @@ class ImpersonationController extends BaseController
         abort_unless($original->isDeveloper(), 403, 'The original account is no longer a developer.');
 
         Auth::login($original);
+
+        audit_log(
+            'Impersonation ended',
+            'auth.impersonate',
+            'auth',
+            [
+                'original_user_id' => $original->id,
+                'original_user_name' => $original->name,
+            ],
+            $original
+        );
+
         $request->session()->forget('impersonation');
         $request->session()->regenerate();
 

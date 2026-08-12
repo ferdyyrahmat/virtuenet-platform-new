@@ -24,7 +24,14 @@ if (!function_exists('audit_log')) {
             $logger->causedBy($user);
         }
 
-        return $logger->withProperties($properties ?? [])->log($description);
+        $properties ??= [];
+
+        if ($request = request()) {
+            $properties['ip_address'] ??= $request->ip();
+            $properties['user_agent'] ??= $request->userAgent();
+        }
+
+        return $logger->withProperties($properties)->log($description);
     }
 }
 

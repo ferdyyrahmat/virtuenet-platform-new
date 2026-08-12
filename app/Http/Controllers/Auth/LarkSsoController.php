@@ -74,9 +74,9 @@ class LarkSsoController extends Controller
                 }
             }
 
+            $request->session()->put('auth_via', 'lark');
             Auth::login($user, true);
             $request->session()->regenerate();
-            audit_log('User logged in via Lark SSO', 'auth.login', 'auth');
 
             return to_route('v1.dashboard');
         } catch (Throwable $exception) {
