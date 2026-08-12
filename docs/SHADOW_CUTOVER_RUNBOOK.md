@@ -25,8 +25,18 @@ Required production values:
 5. Run `php artisan platform:import-legacy --commit` twice. The second run must not increase record counts.
 6. Run `php artisan platform:cutover-check`; every check must pass.
 7. Validate `/health/live`, `/health/readiness`, `/horizon`, and `/pulse` using an authorized operator account.
+8. Run `php artisan platform:ai-gateway-smoke --json` from the deployed application container and archive the JSON output with the release evidence. A passing result must report `configured`, `health`, `key_generated`, and `key_revoked` as `true`. The generated canary secret is never printed and is deleted before the command succeeds.
 
 Imported legacy AI keys remain encrypted and are marked already delivered. They are never re-revealed after migration; users request rotation when a replacement is required.
+
+## AI Gateway acceptance evidence (#46)
+
+The AI Token regression gate has two layers:
+
+1. CI must pass `AiGatewaySmokeCheckTest`, `AiCredentialLifecycleTest`, `LiteLlmGatewayTest`, and `PlatformWorkflowTest`, followed by the complete Laravel test suite.
+2. The deployed shadow/production application must pass `php artisan platform:ai-gateway-smoke --json` using the encrypted LiteLLM connection stored by the platform.
+
+The live smoke command creates a short-lived canary key with a minimal daily budget, verifies LiteLLM key generation, and always attempts deletion in a `finally` path. Treat a cleanup failure as a failed release gate and remove the canary manually before continuing. Never paste the LiteLLM master key or generated virtual key into tickets, CI logs, chat, or release notes.
 
 ## Parity evidence
 
@@ -43,7 +53,7 @@ Record old-versus-shadow counts for departments, users, requests by type/status,
 
 1. Announce a short write freeze on the legacy platform.
 2. Take the final legacy and target database backups.
-3. Run the dry run, final committed import, idempotency rerun, full automated tests, and `platform:cutover-check`.
+3. Run the dry run, final committed import, idempotency rerun, full automated tests, `platform:cutover-check`, and `platform:ai-gateway-smoke --json`.
 4. Switch the domain only after owner, IT/AI admin, finance, and requester acceptance is recorded.
 5. Watch readiness, Horizon failures, Pulse, Lark sync drift, LiteLLM staleness, and reconciliation exceptions continuously during the observation window.
 
