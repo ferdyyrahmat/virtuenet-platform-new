@@ -117,6 +117,8 @@ class ImportLegacyPlatform extends Command
                 'title' => $row->service_name,
                 'description' => $row->description,
                 'status' => $this->requestStatus($row->status),
+                'approval_status' => $this->approvalStatus($row->status),
+                'fulfilment_status' => $this->fulfilmentStatus($row->status),
                 'details' => [
                     'business_justification' => $row->business_justification,
                     'requested_subdomain' => $row->requested_subdomain,
@@ -160,7 +162,8 @@ class ImportLegacyPlatform extends Command
                 'tpm_limit' => $row->tpm_limit,
                 'status' => $row->status,
                 'expires_at' => $row->expires_at,
-                'reveal_expires_at' => now()->addDay(),
+                'reveal_expires_at' => null,
+                'revealed_at' => now(),
             ]);
         }
     }
@@ -191,7 +194,7 @@ class ImportLegacyPlatform extends Command
                             'it_review' => 'IT technical review',
                             default => 'Business Strategy authorization',
                         },
-                        'status' => $stage->status,
+                        'status' => strtolower((string) $stage->status),
                         'note' => $stage->comment ?: $stage->revision_notes,
                         'acted_at' => $stage->decided_at,
                         'lark_node_id' => null,
@@ -215,16 +218,19 @@ class ImportLegacyPlatform extends Command
 
     private function requestType(string $type): string
     {
-        return match ($type) {
+        return match (strtolower($type)) {
+            'ai_access', 'ai_token' => 'ai_token',
             'integration', 'middleware' => 'integration',
-            'ai_powered' => 'custom_system',
+            'saas', 'saas_subscription', 'subscription' => 'saas_subscription',
+            'support' => 'support',
+            'ai_powered', 'custom_system' => 'custom_system',
             default => 'custom_system',
         };
     }
 
     private function requestStatus(string $status): string
     {
-        return match ($status) {
+        return match (strtolower($status)) {
             'draft', 'submitted' => 'submitted',
             'in_approval', 'pending_it_review', 'pending_bizstrat' => 'under_review',
             'revision_needed' => 'revision_requested',
@@ -235,6 +241,30 @@ class ImportLegacyPlatform extends Command
             'recalled', 'archived' => 'cancelled',
             'deploy_failed' => 'waiting_external',
             default => 'submitted',
+        };
+    }
+
+    private function approvalStatus(string $status): string
+    {
+        return match (strtolower($status)) {
+            'revision_needed' => 'revision_required',
+            'rejected' => 'rejected',
+            'recalled', 'archived' => 'cancelled',
+            'approved', 'srs_generating', 'srs_ready', 'srs_validated', 'deploy_queued', 'deploying', 'deploy_failed', 'deployed', 'live' => 'approved',
+            'in_approval', 'pending_it_review', 'pending_bizstrat' => 'in_approval',
+            default => 'submitted',
+        };
+    }
+
+    private function fulfilmentStatus(string $status): string
+    {
+        return match (strtolower($status)) {
+            'deploy_queued' => 'queued',
+            'deploying' => 'provisioning',
+            'deploy_failed' => 'failed',
+            'deployed', 'live' => 'completed',
+            'recalled', 'archived' => 'revoked',
+            default => 'not_started',
         };
     }
 }
