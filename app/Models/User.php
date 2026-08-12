@@ -80,12 +80,12 @@ class User extends Authenticatable
 
     public function isDeveloper(): bool
     {
-        return $this->hasRole('Developer');
+        return $this->hasRole(Role::DEVELOPER);
     }
 
     public function isAdmin(): bool
     {
-        return $this->hasAnyRole(['Developer', 'Admin', 'Administrator']);
+        return $this->hasAnyRole([Role::DEVELOPER, Role::ADMIN, 'Administrator']);
     }
 
 }

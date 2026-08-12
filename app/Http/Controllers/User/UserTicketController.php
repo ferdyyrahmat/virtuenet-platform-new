@@ -30,9 +30,10 @@ class UserTicketController extends Controller
 
     public function show(string $code)
     {
+        $user = Auth::user();
         $ticket = Ticket::with(['replies' => function ($q) {
             $q->where('is_internal_note', false)->orderBy('created_at', 'asc');
-        }, 'assignedDeveloper'])->where('ticket_code', $code)->firstOrFail();
+        }, 'assignedDeveloper'])->where('ticket_code', $code)->whereBelongsTo($user)->firstOrFail();
 
         return view('v1.tickets.show', compact('ticket'));
     }
@@ -84,12 +85,12 @@ class UserTicketController extends Controller
             'message' => 'required|string',
         ]);
 
-        $ticket = Ticket::where('ticket_code', $code)->firstOrFail();
         $user = Auth::user();
+        $ticket = Ticket::where('ticket_code', $code)->whereBelongsTo($user)->firstOrFail();
 
         $reply = TicketReply::create([
             'ticket_id'        => $ticket->id,
-            'user_id'          => $user?->id,
+            'user_id'          => $user->id,
             'sender_type'      => 'user',
             'sender_name'      => $user ? $user->name : $ticket->name,
             'sender_email'     => $user ? $user->email : $ticket->email,

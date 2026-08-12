@@ -8,6 +8,8 @@
 /storage/*.key
 /storage/pail
 /vendor
+/database/database.sqlite
+/silva-kit-new
 .env
 .env.backup
 .env.production

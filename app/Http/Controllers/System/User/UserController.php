@@ -126,6 +126,7 @@ class UserController extends Controller
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
+        $this->guardDeveloperAccountAccess($user);
         $oldRoleIds = $user->roles->pluck('id')->sort()->values()->toArray();
 
         $request->validate([
@@ -152,7 +153,7 @@ class UserController extends Controller
         if (!Auth::user()->isDeveloper()) {
             $newRoles = array_unique(array_merge(
                 $newRoles,
-                Role::whereIn('id', $oldRoleIds)->whereRaw('LOWER(name) = ?', ['developer'])->pluck('id')->all()
+                Role::whereIn('id', $oldRoleIds)->developer()->pluck('id')->all()
             ));
         }
         $user->syncRoles($newRoles);
@@ -185,6 +186,15 @@ class UserController extends Controller
     public function destroy($id)
     {
         $user = User::findOrFail($id);
+        $actor = Auth::user();
+
+        abort_if($user->id === $actor->id, 403, 'You cannot delete your own account.');
+
+        if ($user->isDeveloper()) {
+            abort_if(! $actor->isDeveloper(), 403, 'Only developers can delete developer accounts.');
+            abort_if($this->isLastActiveDeveloper(), 403, 'The last developer account cannot be deleted.');
+        }
+
         $deletedName = $user->name;
         $user->delete();
 
@@ -196,17 +206,30 @@ class UserController extends Controller
             'redirect' => route('admin.users.index')
         ]);
     }
+
     private function visibleRoles()
     {
         return Auth::user()->isDeveloper()
             ? Role::all()
-            : Role::whereRaw('LOWER(name) <> ?', ['developer'])->get();
+            : Role::exceptDeveloper()->get();
     }
 
     private function guardDeveloperRoleAssignment(array $roleIds): void
     {
-        if (!Auth::user()->isDeveloper() && Role::whereIn('id', $roleIds)->whereRaw('LOWER(name) = ?', ['developer'])->exists()) {
+        if (!Auth::user()->isDeveloper() && Role::whereIn('id', $roleIds)->developer()->exists()) {
             abort(403, 'Only developers can assign the Developer role.');
         }
+    }
+
+    private function guardDeveloperAccountAccess(User $user): void
+    {
+        if (! Auth::user()->isDeveloper() && $user->isDeveloper()) {
+            abort(403, 'Only developers can modify developer accounts.');
+        }
+    }
+
+    private function isLastActiveDeveloper(): bool
+    {
+        return User::whereHas('roles', fn ($q) => $q->developer())->count() <= 1;
     }
 }

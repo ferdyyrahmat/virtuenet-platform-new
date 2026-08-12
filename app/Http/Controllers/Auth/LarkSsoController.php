@@ -47,6 +47,10 @@ class LarkSsoController extends Controller
                 return to_route('login')->with('error', 'Your Lark account must provide an email address to sign in.');
             }
 
+            if (! $this->isEmailDomainAllowed($email)) {
+                return to_route('login')->with('error', 'Your Lark account email domain is not allowed to sign in.');
+            }
+
             $user = User::where('lark_open_id', $openId)->first() ?? User::where('email', $email)->first();
 
             if ($user) {
@@ -80,5 +84,25 @@ class LarkSsoController extends Controller
 
             return to_route('login')->with('error', 'Lark SSO could not complete. Please try again.');
         }
+    }
+
+    public function isEmailDomainAllowed(string $email): bool
+    {
+        $allowed = config('services.lark.allowed_domains');
+
+        if (blank($allowed)) {
+            return true;
+        }
+
+        $domain = mb_strtolower(Str::after($email, '@'));
+
+        if (blank($domain) || ! str_contains($email, '@')) {
+            return false;
+        }
+
+        return collect(explode(',', $allowed))
+            ->map(fn (string $item) => mb_strtolower(trim($item)))
+            ->filter()
+            ->contains($domain);
     }
 }

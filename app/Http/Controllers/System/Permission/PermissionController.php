@@ -19,7 +19,7 @@ class PermissionController extends Controller
         if ($request->ajax() || $request->wantsJson()) {
             $query = Role::query()->withCount(['permissions', 'users']);
             if (!Auth::user()->isDeveloper()) {
-                $query->whereRaw('LOWER(name) <> ?', ['developer']);
+                $query->exceptDeveloper();
             }
             
             return DataTables::of($query)
@@ -48,7 +48,7 @@ class PermissionController extends Controller
                 ->addColumn('actions', function ($row) {
                     if ($row->isLocked()) {
                         $editUrl = route('admin.permissions.edit', $row->id);
-                        $unlock = Auth::user()->isDeveloper() && strcasecmp($row->name, 'Developer') !== 0
+                        $unlock = Auth::user()->isDeveloper() && ! $row->isDeveloper()
                             ? '<button type="button" class="btn btn-sm btn-outline-warning" title="Unlock" onclick="toggleRoleLock(' . $row->id . ', false)"><i class="mdi mdi-lock-open-outline fs-16"></i></button>'
                             : '';
                         return '<div class="text-center"><a href="' . $editUrl . '" class="btn btn-sm btn-outline-primary me-1" title="Edit"><i class="mdi mdi-square-edit-outline fs-16"></i></a><span class="badge bg-warning-subtle text-warning me-1" title="Locked role"><i class="mdi mdi-lock-outline me-1"></i>Locked</span>' . $unlock . '</div>';
@@ -205,7 +205,7 @@ class PermissionController extends Controller
         abort_unless(Auth::user()->isDeveloper(), 403);
 
         $role = Role::findOrFail($id);
-        abort_if(strcasecmp($role->name, 'Developer') === 0, 403, 'The Developer role is always locked.');
+        abort_if($role->isDeveloper(), 403, 'The Developer role is always locked.');
 
         $role->update(['is_locked' => $request->boolean('locked')]);
 
@@ -271,6 +271,6 @@ class PermissionController extends Controller
     {
         return Auth::user()->isDeveloper()
             ? User::all()
-            : User::whereDoesntHave('roles', fn ($query) => $query->whereRaw('LOWER(name) = ?', ['developer']))->get();
+            : User::whereDoesntHave('roles', fn ($query) => $query->developer())->get();
     }
 }

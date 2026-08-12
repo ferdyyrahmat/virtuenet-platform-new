@@ -15,7 +15,7 @@ class RoleAndUserSeeder extends Seeder
     public function run(): void
     {
         $developerRole = Role::updateOrCreate(
-            ['name' => 'Developer'],
+            ['name' => Role::DEVELOPER],
             [
                 'description' => 'Full system access and developer tools.',
                 'guard_name' => 'web',
@@ -24,7 +24,7 @@ class RoleAndUserSeeder extends Seeder
         );
 
         $adminRole = Role::updateOrCreate(
-            ['name' => 'Admin'],
+            ['name' => Role::ADMIN],
             [
                 'description' => 'Management access for users, tickets, audit trails, and operations.',
                 'guard_name' => 'web',
@@ -32,7 +32,7 @@ class RoleAndUserSeeder extends Seeder
         );
 
         $userRole = Role::updateOrCreate(
-            ['name' => 'User'],
+            ['name' => Role::USER],
             [
                 'description' => 'Standard user access for profile and support tickets.',
                 'guard_name' => 'web',
