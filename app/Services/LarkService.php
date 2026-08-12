@@ -48,7 +48,7 @@ class LarkService
 
     public function tenantAccessToken(): string
     {
-        $this->ensureConfigured();
+        $this->ensureApiConfigured();
 
         if ($token = Cache::get('lark.tenant_access_token')) {
             return $token;
@@ -106,13 +106,78 @@ class LarkService
         return $response['data'] ?? [];
     }
 
+    public function approvalInstance(string $instanceCode): array
+    {
+        $response = $this->client()
+            ->withToken($this->tenantAccessToken())
+            ->get('/open-apis/approval/v4/instances/'.$instanceCode)
+            ->throw()->json();
+        $this->throwIfLarkFailed($response);
+
+        return $response['data'] ?? [];
+    }
+
+    public function approvalInstanceCodes(int $startTime, int $endTime, ?string $pageToken = null): array
+    {
+        $response = $this->client()
+            ->withToken($this->tenantAccessToken())
+            ->get('/open-apis/approval/v4/instances', array_filter([
+                'approval_code' => config('services.lark.approval_code'),
+                'start_time' => (string) $startTime,
+                'end_time' => (string) $endTime,
+                'page_size' => 100,
+                'page_token' => $pageToken,
+            ]))->throw()->json();
+        $this->throwIfLarkFailed($response);
+
+        return $response['data'] ?? [];
+    }
+
+    public function subscribeApproval(): void
+    {
+        $response = $this->client()
+            ->withToken($this->tenantAccessToken())
+            ->post('/open-apis/approval/v4/approvals/'.config('services.lark.approval_code').'/subscribe')
+            ->throw()->json();
+        $this->throwIfLarkFailed($response);
+    }
+
+    public function configuredForApproval(): bool
+    {
+        return (bool) config('services.lark.approval_enabled')
+            && filled($this->appId())
+            && filled($this->appSecret())
+            && filled(config('services.lark.approval_code'));
+    }
+
+    public function approvalContractIsSafe(): bool
+    {
+        $code = (string) config('services.lark.approval_code');
+
+        return $this->configuredForApproval()
+            && $code === 'E47A1D70-A980-4F01-AFAF-BFE2E4B3F69F'
+            && $code !== 'VIRTUENET_SERVICE_REQUEST_V1'
+            && (! app()->isProduction() || (filled(config('services.lark.verification_token')) && filled(config('services.lark.encrypt_key'))));
+    }
+
+    public function approvalNodeApprovers(): array
+    {
+        return collect(config('services.lark.approval_node_approvers', []))
+            ->filter(fn ($ids): bool => is_array($ids) && $ids !== [])
+            ->map(fn (array $ids, string $node): array => [
+                'key' => $node,
+                'value' => collect($ids)->map(fn ($id) => trim((string) $id))->filter()->values()->all(),
+            ])->filter(fn (array $item): bool => $item['value'] !== [])->values()->all();
+    }
+
     public function client(): PendingRequest
     {
         return Http::baseUrl(rtrim($this->connection()?->base_url ?: config('services.lark.open_api_url'), '/'))
             ->acceptJson()
             ->asJson()
             ->timeout(10)
-            ->connectTimeout(3);
+            ->connectTimeout(3)
+            ->retry(2, 250, throw: false);
     }
 
     private function requestToken(array $payload): array
@@ -129,8 +194,16 @@ class LarkService
 
     private function ensureConfigured(): void
     {
-        if (blank($this->appId()) || blank($this->appSecret()) || blank(config('services.lark.redirect_uri'))) {
+        $this->ensureApiConfigured();
+        if (blank(config('services.lark.redirect_uri'))) {
             throw new RuntimeException('Lark SSO is not configured.');
+        }
+    }
+
+    private function ensureApiConfigured(): void
+    {
+        if (blank($this->appId()) || blank($this->appSecret())) {
+            throw new RuntimeException('Lark API is not configured.');
         }
     }
 

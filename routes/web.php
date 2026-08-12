@@ -2,11 +2,13 @@
 
 use App\Http\Controllers\Auth\ImpersonationController;
 use App\Http\Controllers\Dashboard\DashboardController;
+use App\Http\Controllers\Health\ReadinessController;
 use App\Http\Controllers\RoutingController;
 use App\Http\Controllers\System\Language\LanguageController;
 use App\Http\Controllers\System\Notification\NotificationBellController;
 use App\Http\Controllers\System\Search\SearchController;
 use App\Http\Controllers\Webhook\GithubWebhookController;
+use App\Http\Controllers\Webhook\LarkWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -25,6 +27,8 @@ require __DIR__.'/partials/admin.php';
 require __DIR__.'/partials/user.php';
 
 Route::post('webhooks/github', GithubWebhookController::class)->name('webhooks.github');
+Route::post('webhooks/lark', LarkWebhookController::class)->middleware('throttle:120,1')->name('webhooks.lark');
+Route::get('health/readiness', ReadinessController::class)->name('health.readiness');
 
 Route::get('lang/{lang}', [LanguageController::class, 'switchLang'])->name('lang.switch');
 Route::post('theme/toggle', [LanguageController::class, 'toggleTheme'])->name('theme.toggle');

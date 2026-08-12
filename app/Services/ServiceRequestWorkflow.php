@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\ServiceRequestStatus;
 use App\Enums\ServiceRequestType;
+use App\Jobs\CreateLarkApproval;
 use App\Jobs\ProvisionAiCredential;
 use App\Models\ServiceDelivery;
 use App\Models\ServiceRequest;
@@ -18,27 +19,48 @@ class ServiceRequestWorkflow
 {
     public function create(User $requester, array $data): ServiceRequest
     {
-        return DB::transaction(function () use ($requester, $data): ServiceRequest {
+        if (config('services.lark.approval_enabled') && ! config('services.lark.approval_outbound_enabled')) {
+            throw ValidationException::withMessages(['request' => 'Submit this request from the Lark Modified approval form.']);
+        }
+
+        $request = DB::transaction(function () use ($requester, $data): ServiceRequest {
             $type = ServiceRequestType::from($data['type']);
+            $larkApproval = (bool) config('services.lark.approval_enabled')
+                && (bool) config('services.lark.approval_outbound_enabled');
             $request = ServiceRequest::create([
                 ...$data,
                 'code' => 'REQ-'.now()->format('Ym').'-'.strtoupper(substr((string) Str::ulid(), -8)),
                 'requester_id' => $requester->id,
+                'department_id' => $requester->departments()->wherePivot('is_primary', true)->value('departments.id')
+                    ?? $requester->departments()->value('departments.id'),
                 'status' => ServiceRequestStatus::Submitted,
-                'current_stage' => $type->approvalStages()[0],
+                'approval_source' => $larkApproval ? 'lark' : 'local',
+                'lark_approval_code' => $larkApproval ? config('services.lark.approval_code') : null,
+                'current_stage' => $larkApproval ? 'Manager approval' : $type->approvalStages()[0],
                 'submitted_at' => now(),
             ]);
 
-            $this->createApprovalRound($request, 1);
+            if (! $larkApproval) {
+                $this->createApprovalRound($request, 1);
+            }
             $this->record($request, $requester, 'submitted', 'Request submitted for review.');
             $this->notifyReviewers($request, 'New request '.$request->code, $request->title);
 
             return $request;
         });
+
+        if ($request->approval_source === 'lark') {
+            CreateLarkApproval::dispatch($request)->afterCommit();
+        }
+
+        return $request;
     }
 
     public function review(ServiceRequest $request, User $actor, string $action, ?string $note): ServiceRequest
     {
+        if ($request->approval_source === 'lark') {
+            throw ValidationException::withMessages(['action' => 'This request is approved in Lark and cannot be decided locally.']);
+        }
         $provisionAi = false;
 
         $request = DB::transaction(function () use ($request, $actor, $action, $note, &$provisionAi): ServiceRequest {
@@ -100,6 +122,10 @@ class ServiceRequestWorkflow
 
     public function resubmit(ServiceRequest $request, User $actor, array $data): ServiceRequest
     {
+        if ($request->approval_source === 'lark') {
+            throw ValidationException::withMessages(['request' => 'Revise and resubmit this request in Lark.']);
+        }
+
         return DB::transaction(function () use ($request, $actor, $data): ServiceRequest {
             $request = ServiceRequest::query()->lockForUpdate()->findOrFail($request->id);
 
@@ -189,6 +215,10 @@ class ServiceRequestWorkflow
 
     public function cancel(ServiceRequest $request, User $actor): void
     {
+        if ($request->approval_source === 'lark') {
+            throw ValidationException::withMessages(['request' => 'Cancel this request in Lark.']);
+        }
+
         DB::transaction(function () use ($request, $actor): void {
             $request->update(['status' => ServiceRequestStatus::Cancelled, 'cancelled_at' => now(), 'current_stage' => null]);
             $this->record($request, $actor, 'cancelled', 'Request cancelled by requester.');
@@ -197,7 +227,9 @@ class ServiceRequestWorkflow
 
     private function createApprovalRound(ServiceRequest $request, int $round): void
     {
-        foreach ($request->type->approvalStages() as $index => $stage) {
+        $stages = $request->type->approvalStages();
+
+        foreach ($stages as $index => $stage) {
             ServiceRequestApproval::create([
                 'service_request_id' => $request->id,
                 'round' => $round,

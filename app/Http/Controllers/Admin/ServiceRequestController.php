@@ -19,8 +19,15 @@ class ServiceRequestController extends Controller
 {
     public function index(Request $request): View
     {
+        $departmentIds = $request->user()->departments()->pluck('departments.id');
         $requests = ServiceRequest::query()
             ->with(['requester', 'assignee'])
+            ->unless($request->user()->isDeveloper(), fn ($query) => $query->where(function ($query) use ($request, $departmentIds) {
+                $query->whereNull('department_id')
+                    ->orWhereIn('department_id', $departmentIds)
+                    ->orWhere('requester_id', $request->user()->id)
+                    ->orWhere('assigned_to', $request->user()->id);
+            }))
             ->when($request->filled('type'), fn ($query) => $query->where('type', $request->string('type')))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('q'), function ($query) use ($request) {
@@ -41,6 +48,7 @@ class ServiceRequestController extends Controller
 
     public function show(ServiceRequest $serviceRequest): View
     {
+        $this->authorize('view', $serviceRequest);
         $serviceRequest->load(['requester', 'assignee', 'approvals.approver', 'updates.actor', 'delivery', 'aiCredential']);
         $operators = User::permission('manage service requests')->orderBy('name')->get();
 
@@ -49,6 +57,7 @@ class ServiceRequestController extends Controller
 
     public function review(ReviewServiceRequestRequest $request, ServiceRequest $serviceRequest, ServiceRequestWorkflow $workflow): JsonResponse
     {
+        $this->authorize('review', $serviceRequest);
         $workflow->review($serviceRequest, $request->user(), $request->string('action'), $request->input('note'));
 
         return $this->success('Review recorded.', $serviceRequest);
@@ -56,6 +65,7 @@ class ServiceRequestController extends Controller
 
     public function transition(Request $request, ServiceRequest $serviceRequest, ServiceRequestWorkflow $workflow): JsonResponse
     {
+        $this->authorize('manage', $serviceRequest);
         $validated = $request->validate([
             'status' => ['required', Rule::enum(ServiceRequestStatus::class)],
             'assigned_to' => ['nullable', 'exists:users,id'],
@@ -68,6 +78,7 @@ class ServiceRequestController extends Controller
 
     public function delivery(Request $request, ServiceRequest $serviceRequest, ServiceRequestWorkflow $workflow): JsonResponse
     {
+        $this->authorize('manage', $serviceRequest);
         $validated = $request->validate([
             'status' => ['required', Rule::in(['pending', 'active', 'delivered', 'expired'])],
             'reference' => ['nullable', 'string', 'max:255'],
@@ -80,8 +91,9 @@ class ServiceRequestController extends Controller
         return $this->success('Delivery information saved.', $serviceRequest);
     }
 
-    public function provision(ServiceRequest $serviceRequest): JsonResponse
+    public function provision(Request $request, ServiceRequest $serviceRequest): JsonResponse
     {
+        $this->authorize('manage', $serviceRequest);
         abort_unless($serviceRequest->type === ServiceRequestType::AiToken || data_get($serviceRequest->details, 'needs_ai_analyzer'), 422);
         abort_unless(in_array($serviceRequest->status, [ServiceRequestStatus::Approved, ServiceRequestStatus::InProgress, ServiceRequestStatus::WaitingExternal, ServiceRequestStatus::Completed], true), 422);
         abort_if($serviceRequest->aiCredential()->exists(), 422, 'An AI credential already exists for this request.');

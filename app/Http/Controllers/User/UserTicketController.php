@@ -33,6 +33,7 @@ class UserTicketController extends Controller
         $ticket = Ticket::with(['replies' => function ($q) {
             $q->where('is_internal_note', false)->orderBy('created_at', 'asc');
         }, 'assignedDeveloper'])->where('ticket_code', $code)->firstOrFail();
+        $this->authorize('view', $ticket);
 
         return view('v1.tickets.show', compact('ticket'));
     }
@@ -40,13 +41,13 @@ class UserTicketController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'subject'     => 'required|string|max:255',
-            'category'    => 'required|in:bug,feature_request,general_inquiry,server_issue,billing',
-            'priority'    => 'nullable|in:low,medium,high,urgent',
+            'subject' => 'required|string|max:255',
+            'category' => 'required|in:bug,feature_request,general_inquiry,server_issue,billing',
+            'priority' => 'nullable|in:low,medium,high,urgent',
             'description' => 'required|string',
-            'name'        => 'nullable|string|max:255',
-            'email'       => 'nullable|email|max:255',
-            'phone'       => 'nullable|string|max:50',
+            'name' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:50',
         ]);
 
         $user = Auth::user();
@@ -54,14 +55,14 @@ class UserTicketController extends Controller
 
         $ticket = Ticket::create([
             'ticket_code' => $ticketCode,
-            'user_id'     => $user?->id,
-            'name'        => $user ? $user->name : ($request->name ?? 'Guest User'),
-            'email'       => $user ? $user->email : ($request->email ?? 'guest@example.com'),
-            'phone'       => $user ? $user->phone : $request->phone,
-            'subject'     => $request->subject,
-            'category'    => $request->category,
-            'priority'    => $request->priority ?? 'medium',
-            'status'      => 'open',
+            'user_id' => $user?->id,
+            'name' => $user ? $user->name : ($request->name ?? 'Guest User'),
+            'email' => $user ? $user->email : ($request->email ?? 'guest@example.com'),
+            'phone' => $user ? $user->phone : $request->phone,
+            'subject' => $request->subject,
+            'category' => $request->category,
+            'priority' => $request->priority ?? 'medium',
+            'status' => 'open',
             'description' => $request->description,
         ]);
 
@@ -71,10 +72,10 @@ class UserTicketController extends Controller
         $msg = "Ticket #{$ticketCode} created successfully! You can track progress here.";
 
         return response()->json([
-            'success'     => true,
-            'message'     => $msg,
+            'success' => true,
+            'message' => $msg,
             'ticket_code' => $ticketCode,
-            'redirect'    => route('v1.tickets.show', $ticketCode)
+            'redirect' => route('v1.tickets.show', $ticketCode),
         ]);
     }
 
@@ -86,14 +87,15 @@ class UserTicketController extends Controller
 
         $ticket = Ticket::where('ticket_code', $code)->firstOrFail();
         $user = Auth::user();
+        $this->authorize('reply', $ticket);
 
         $reply = TicketReply::create([
-            'ticket_id'        => $ticket->id,
-            'user_id'          => $user?->id,
-            'sender_type'      => 'user',
-            'sender_name'      => $user ? $user->name : $ticket->name,
-            'sender_email'     => $user ? $user->email : $ticket->email,
-            'message'          => $request->message,
+            'ticket_id' => $ticket->id,
+            'user_id' => $user?->id,
+            'sender_type' => 'user',
+            'sender_name' => $user ? $user->name : $ticket->name,
+            'sender_email' => $user ? $user->email : $ticket->email,
+            'message' => $request->message,
             'is_internal_note' => false,
         ]);
 
@@ -107,9 +109,9 @@ class UserTicketController extends Controller
         $this->notifService->notifyTicketReplied($ticket, $reply);
 
         return response()->json([
-            'success'  => true,
-            'message'  => 'Your reply has been submitted successfully.',
-            'redirect' => route('v1.tickets.show', $code)
+            'success' => true,
+            'message' => 'Your reply has been submitted successfully.',
+            'redirect' => route('v1.tickets.show', $code),
         ]);
     }
 }

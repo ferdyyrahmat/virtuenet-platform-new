@@ -46,6 +46,15 @@ return [
         'encrypt_key' => env('LARK_ENCRYPT_KEY'),
         'bot_name' => env('LARK_BOT_NAME'),
         'default_group_prefix' => env('LARK_DEFAULT_GROUP_PREFIX'),
+        'approval_enabled' => env('LARK_APPROVAL_ENABLED', false),
+        'approval_outbound_enabled' => env('LARK_APPROVAL_OUTBOUND_ENABLED', false),
+        'approval_name' => env('LARK_APPROVAL_NAME', 'Lark Modified'),
+        'approval_admin_id' => env('LARK_APPROVAL_ADMIN_ID', '7383932003449585670'),
+        'approval_code' => env('LARK_APPROVAL_CODE', 'E47A1D70-A980-4F01-AFAF-BFE2E4B3F69F'),
+        'approval_field_map' => json_decode((string) env('LARK_APPROVAL_FIELD_MAP', '[]'), true) ?: [],
+        'approval_node_approvers' => json_decode((string) env('LARK_APPROVAL_NODE_APPROVERS', '[]'), true) ?: [],
+        'approval_url_template' => env('LARK_APPROVAL_URL_TEMPLATE'),
+        'webhook_clock_skew' => (int) env('LARK_WEBHOOK_CLOCK_SKEW', 300),
     ],
 
 ];

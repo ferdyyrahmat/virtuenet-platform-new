@@ -16,13 +16,13 @@ class ServiceRequest extends Model
 {
     use HasFactory, LogsActivity;
 
-    protected $fillable = ['code', 'parent_id', 'requester_id', 'assigned_to', 'type', 'title', 'description', 'status', 'priority', 'current_stage', 'details', 'estimated_budget', 'currency', 'requested_due_date', 'submitted_at', 'approved_at', 'started_at', 'completed_at', 'cancelled_at'];
+    protected $fillable = ['legacy_uuid', 'code', 'parent_id', 'requester_id', 'department_id', 'assigned_to', 'type', 'title', 'description', 'status', 'priority', 'current_stage', 'details', 'estimated_budget', 'currency', 'requested_due_date', 'submitted_at', 'approved_at', 'started_at', 'completed_at', 'cancelled_at', 'source', 'source_record_id', 'approval_source', 'lark_approval_code', 'lark_instance_code', 'lark_status', 'lark_approval_url', 'lark_contract_hash', 'lark_form_snapshot', 'approval_sync_status', 'approval_synced_at', 'source_created_at', 'source_updated_at'];
 
     protected $attributes = ['status' => 'submitted', 'priority' => 'normal', 'currency' => 'USD'];
 
     protected function casts(): array
     {
-        return ['type' => ServiceRequestType::class, 'status' => ServiceRequestStatus::class, 'details' => 'array', 'estimated_budget' => 'decimal:2', 'requested_due_date' => 'date', 'submitted_at' => 'datetime', 'approved_at' => 'datetime', 'started_at' => 'datetime', 'completed_at' => 'datetime', 'cancelled_at' => 'datetime'];
+        return ['type' => ServiceRequestType::class, 'status' => ServiceRequestStatus::class, 'details' => 'array', 'lark_form_snapshot' => 'array', 'estimated_budget' => 'decimal:2', 'requested_due_date' => 'date', 'submitted_at' => 'datetime', 'approved_at' => 'datetime', 'started_at' => 'datetime', 'completed_at' => 'datetime', 'cancelled_at' => 'datetime', 'approval_synced_at' => 'datetime', 'source_created_at' => 'datetime', 'source_updated_at' => 'datetime'];
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -38,6 +38,11 @@ class ServiceRequest extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function parent(): BelongsTo

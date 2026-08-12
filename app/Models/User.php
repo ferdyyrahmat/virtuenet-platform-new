@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -34,6 +35,7 @@ class User extends Authenticatable
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
         'lark_open_id',
+        'legacy_uuid',
     ];
 
     /**
@@ -89,6 +91,11 @@ class User extends Authenticatable
     public function aiCredentials(): HasMany
     {
         return $this->hasMany(AiAccessCredential::class);
+    }
+
+    public function departments(): BelongsToMany
+    {
+        return $this->belongsToMany(Department::class)->withPivot('is_primary')->withTimestamps();
     }
 
     public function activityLogs(): MorphMany

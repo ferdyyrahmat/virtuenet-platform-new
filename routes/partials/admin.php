@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AiCredentialController;
 use App\Http\Controllers\Admin\AiUsageController as AdminAiUsageController;
 use App\Http\Controllers\Admin\ConnectionController;
 use App\Http\Controllers\Admin\GithubTaskController;
@@ -15,6 +16,11 @@ use App\Http\Controllers\System\User\UserController;
 Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
     Route::get('ai-usage', [AdminAiUsageController::class, 'index'])->middleware('permission:view ai usage')->name('ai-usage.index');
     Route::get('ai-usage/data', [AdminAiUsageController::class, 'data'])->middleware('permission:view ai usage')->name('ai-usage.data');
+    Route::prefix('ai-credentials')->name('ai-credentials.')->middleware('permission:manage service requests')->group(function () {
+        Route::patch('{credential}/status', [AiCredentialController::class, 'status'])->name('status');
+        Route::put('{credential}', [AiCredentialController::class, 'update'])->name('update');
+        Route::post('{credential}/rotate', [AiCredentialController::class, 'rotate'])->name('rotate');
+    });
     Route::prefix('requests')->name('requests.')->group(function () {
         Route::get('', [AdminServiceRequestController::class, 'index'])->middleware('permission:view service requests')->name('index');
         Route::get('{serviceRequest}', [AdminServiceRequestController::class, 'show'])->middleware('permission:view service requests')->name('show');

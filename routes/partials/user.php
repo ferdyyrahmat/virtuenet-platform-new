@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\System\Profile\ProfileController;
 use App\Http\Controllers\System\Profile\SanctumTokenController;
+use App\Http\Controllers\User\AiCredentialController;
 use App\Http\Controllers\User\AiUsageController;
 use App\Http\Controllers\User\ServiceRequestController;
 use App\Http\Controllers\User\UserTicketController;
@@ -36,4 +37,5 @@ Route::prefix('v1')->name('v1.')->middleware(['auth'])->group(function () {
 
     Route::get('ai-usage', [AiUsageController::class, 'index'])->name('ai-usage.index');
     Route::get('ai-usage/data', [AiUsageController::class, 'data'])->name('ai-usage.data');
+    Route::post('ai-credentials/{credential}/reveal', [AiCredentialController::class, 'reveal'])->name('ai-credentials.reveal');
 });

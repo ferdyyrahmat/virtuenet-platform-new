@@ -24,7 +24,14 @@
             @if($serviceRequest->aiCredential)
                 <div class="card platform-card mb-4 border-success"><div class="card-body p-4">
                     <div class="d-flex justify-content-between align-items-start gap-3"><div><span class="eyebrow text-success">Ready to use</span><h6 class="mb-1">AI access token</h6><p class="text-muted mb-3">Keep this token private. Usage and budget are monitored through the connected gateway.</p></div><a href="{{ route('v1.ai-usage.index') }}" class="btn btn-outline-success btn-sm">View usage</a></div>
-                    <div class="credential-box"><code data-sensitive-value>{{ $serviceRequest->aiCredential->virtual_key }}</code><button type="button" class="btn btn-sm btn-light" data-copy-sensitive>Copy</button></div>
+                    <div class="credential-box" data-key-delivery>
+                        @if(!$serviceRequest->aiCredential->revealed_at && $serviceRequest->aiCredential->reveal_expires_at?->isFuture())
+                            <span>This key can be revealed once until {{ $serviceRequest->aiCredential->reveal_expires_at->format('d M Y, H:i') }}.</span>
+                            <button type="button" class="btn btn-sm btn-success" data-reveal-key data-url="{{ route('v1.ai-credentials.reveal', $serviceRequest->aiCredential) }}">Reveal once</button>
+                        @else
+                            <span>Key delivered. Rotate it if a replacement is needed.</span>
+                        @endif
+                    </div>
                     <div class="d-flex flex-wrap gap-2 mt-3"><span class="badge bg-light text-body">Budget ${{ number_format((float) $serviceRequest->aiCredential->max_budget, 2) }}</span><span class="badge bg-light text-body">{{ $serviceRequest->aiCredential->budget_duration }}</span>@foreach($serviceRequest->aiCredential->models ?? [] as $model)<span class="badge bg-primary-subtle text-primary">{{ $model }}</span>@endforeach</div>
                 </div></div>
             @endif

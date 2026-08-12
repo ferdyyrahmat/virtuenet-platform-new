@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ServiceRequestApproval extends Model
 {
-    protected $fillable = ['service_request_id', 'round', 'step', 'stage', 'approver_id', 'status', 'note', 'acted_at'];
+    protected $fillable = ['service_request_id', 'round', 'step', 'stage', 'approver_id', 'status', 'note', 'acted_at', 'lark_node_id', 'lark_task_id', 'external_approver_id'];
 
     protected function casts(): array
     {

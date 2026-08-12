@@ -72,6 +72,8 @@ class ProvisionAiCredential implements ShouldQueue
             'virtual_key' => $key,
             'key_hash' => hash('sha256', $key),
             'key_preview' => substr($key, 0, 7).'...'.substr($key, -4),
+            'gateway_key_id' => $response['key_id'] ?? $response['key_name'] ?? null,
+            'reveal_expires_at' => now()->addDay(),
             'models' => $models,
             'max_budget' => $maxBudget,
             'budget_duration' => data_get($details, 'budget_duration', 'monthly'),

@@ -1,21 +1,22 @@
 services:
-  # Production PHP-FPM Application
+  # Production Octane / FrankenPHP application
   app:
+    init: true
     build:
       context: .
       dockerfile: docker/Dockerfile.prod
-    container_name: silva-app-prod
     restart: always
-    working_dir: /var/www/html
+    working_dir: /app
     environment:
       - RUN_APP_SETUP=true
       - APP_ENV=production
       - APP_DEBUG=false
+      - DB_CONNECTION=pgsql
       - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=${DB_DATABASE:-silva_kit_prod}
-      - DB_USERNAME=${DB_USERNAME:-silva_prod_user}
-      - DB_PASSWORD=${DB_PASSWORD:-silva_prod_password}
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-virtuenet}
+      - DB_USERNAME=${DB_USERNAME:-virtuenet}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     env_file:
@@ -26,50 +27,55 @@ services:
       redis:
         condition: service_started
     networks:
-      - silva-prod-network
+      - virtuenet-prod-network
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8000/health/live') === false ? 1 : 0);"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
 
   # Production Nginx Server
   web:
+    init: true
     image: nginx:alpine
-    container_name: silva-web-prod
     restart: always
     ports:
       - "${HTTP_PORT:-80}:80"
     volumes:
       - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     networks:
-      - silva-prod-network
+      - virtuenet-prod-network
 
-  # Production MySQL Database
+  # Production PostgreSQL Database
   db:
-    image: mysql:8.0
-    container_name: silva-db-prod
+    image: postgres:16-alpine
+    init: true
     restart: always
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-silva_kit_prod}
-      MYSQL_USER: ${DB_USERNAME:-silva_prod_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-silva_prod_password}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-prod_root_secret}
+      POSTGRES_DB: ${DB_DATABASE:-virtuenet}
+      POSTGRES_USER: ${DB_USERNAME:-virtuenet}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
-      - silva-prod-dbdata:/var/lib/mysql
+      - virtuenet-prod-dbdata:/var/lib/postgresql/data
     networks:
-      - silva-prod-network
+      - virtuenet-prod-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       timeout: 10s
       retries: 5
 
   # Production Redis Cache & Queue Engine
   redis:
+    init: true
     image: redis:7-alpine
-    container_name: silva-redis-prod
     restart: always
     volumes:
-      - silva-prod-redisdata:/data
+      - virtuenet-prod-redisdata:/data
     networks:
-      - silva-prod-network
+      - virtuenet-prod-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       timeout: 5s
@@ -77,20 +83,21 @@ services:
 
   # Laravel Horizon queue supervisor
   horizon:
+    init: true
     build:
       context: .
       dockerfile: docker/Dockerfile.prod
-    container_name: silva-horizon-prod
     restart: always
-    working_dir: /var/www/html
+    working_dir: /app
     command: php artisan horizon
     environment:
       - APP_ENV=production
+      - DB_CONNECTION=pgsql
       - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=${DB_DATABASE:-silva_kit_prod}
-      - DB_USERNAME=${DB_USERNAME:-silva_prod_user}
-      - DB_PASSWORD=${DB_PASSWORD:-silva_prod_password}
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-virtuenet}
+      - DB_USERNAME=${DB_USERNAME:-virtuenet}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     env_file:
@@ -100,27 +107,28 @@ services:
       - db
       - redis
     networks:
-      - silva-prod-network
+      - virtuenet-prod-network
 
   # Laravel scheduler for Horizon metrics
   scheduler:
+    init: true
     build:
       context: .
       dockerfile: docker/Dockerfile.prod
-    container_name: silva-scheduler-prod
     restart: always
-    working_dir: /var/www/html
+    working_dir: /app
     command: php artisan schedule:work
     env_file:
       - .env
     environment:
       - APP_ENV=production
       - APP_DEBUG=false
+      - DB_CONNECTION=pgsql
       - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=${DB_DATABASE:-silva_kit_prod}
-      - DB_USERNAME=${DB_USERNAME:-silva_prod_user}
-      - DB_PASSWORD=${DB_PASSWORD:-silva_prod_password}
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-virtuenet}
+      - DB_USERNAME=${DB_USERNAME:-virtuenet}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
@@ -129,27 +137,28 @@ services:
       redis:
         condition: service_started
     networks:
-      - silva-prod-network
+      - virtuenet-prod-network
 
   # Laravel Pulse server metrics collector
   pulse-check:
+    init: true
     build:
       context: .
       dockerfile: docker/Dockerfile.prod
-    container_name: silva-pulse-check-prod
     restart: always
-    working_dir: /var/www/html
+    working_dir: /app
     command: php artisan pulse:check
     env_file:
       - .env
     environment:
       - APP_ENV=production
       - APP_DEBUG=false
+      - DB_CONNECTION=pgsql
       - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=${DB_DATABASE:-silva_kit_prod}
-      - DB_USERNAME=${DB_USERNAME:-silva_prod_user}
-      - DB_PASSWORD=${DB_PASSWORD:-silva_prod_password}
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-virtuenet}
+      - DB_USERNAME=${DB_USERNAME:-virtuenet}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     depends_on:
@@ -158,14 +167,14 @@ services:
       redis:
         condition: service_started
     networks:
-      - silva-prod-network
+      - virtuenet-prod-network
 
 networks:
-  silva-prod-network:
+  virtuenet-prod-network:
     driver: bridge
 
 volumes:
-  silva-prod-dbdata:
+  virtuenet-prod-dbdata:
     driver: local
-  silva-prod-redisdata:
+  virtuenet-prod-redisdata:
     driver: local

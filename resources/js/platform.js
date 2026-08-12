@@ -29,6 +29,38 @@ document.querySelector('[data-copy-sensitive]')?.addEventListener('click', async
     window.setTimeout(() => event.currentTarget.textContent = 'Copy', 1500)
 })
 
+document.querySelector('[data-reveal-key]')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget
+    button.disabled = true
+    try {
+        const response = await fetch(button.dataset.url, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            },
+        })
+        const payload = await response.json()
+        if (!response.ok || !payload.success) throw new Error(payload.message || 'The key could not be revealed.')
+
+        const container = button.closest('[data-key-delivery]')
+        const code = document.createElement('code')
+        const copy = document.createElement('button')
+        code.textContent = payload.key
+        copy.type = 'button'
+        copy.className = 'btn btn-sm btn-light'
+        copy.textContent = 'Copy'
+        copy.addEventListener('click', async () => {
+            await navigator.clipboard.writeText(payload.key)
+            copy.textContent = 'Copied'
+        })
+        container.replaceChildren(code, copy)
+    } catch (error) {
+        button.disabled = false
+        button.textContent = error.message
+    }
+})
+
 const usagePage = document.querySelector('[data-ai-usage-url]')
 
 if (usagePage && document.querySelector('[data-ai-logs]')) {

@@ -1,21 +1,22 @@
 services:
   # Laravel PHP-FPM Application
   app:
+    init: true
     build:
       context: .
       dockerfile: docker/Dockerfile.dev
-    container_name: silva-app-dev
     restart: unless-stopped
     working_dir: /var/www/html
     volumes:
       - .:/var/www/html
     environment:
       - RUN_APP_SETUP=true
+      - DB_CONNECTION=pgsql
       - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=${DB_DATABASE:-silva_kit}
-      - DB_USERNAME=${DB_USERNAME:-silva_user}
-      - DB_PASSWORD=${DB_PASSWORD:-silva_password}
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-virtuenet}
+      - DB_USERNAME=${DB_USERNAME:-virtuenet}
+      - DB_PASSWORD=${DB_PASSWORD:-virtuenet_dev}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     env_file:
@@ -26,12 +27,12 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - silva-network
+      - virtuenet-network
 
   # Nginx Web Server
   web:
+    init: true
     image: nginx:alpine
-    container_name: silva-web-dev
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:80"
@@ -43,40 +44,39 @@ services:
       app:
         condition: service_started
     networks:
-      - silva-network
+      - virtuenet-network
 
-  # MySQL Database
+  # PostgreSQL Database
   db:
-    image: mysql:8.0
-    container_name: silva-db-dev
+    image: postgres:16-alpine
+    init: true
     restart: unless-stopped
     ports:
-      - "${FORWARD_DB_PORT:-3306}:3306"
+      - "${FORWARD_DB_PORT:-5432}:5432"
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-silva_kit}
-      MYSQL_USER: ${DB_USERNAME:-silva_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-silva_password}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password}
+      POSTGRES_DB: ${DB_DATABASE:-virtuenet}
+      POSTGRES_USER: ${DB_USERNAME:-virtuenet}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-virtuenet_dev}
     volumes:
-      - silva-dbdata:/var/lib/mysql
+      - virtuenet-dbdata:/var/lib/postgresql/data
     networks:
-      - silva-network
+      - virtuenet-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       timeout: 10s
       retries: 5
 
   # Redis Cache & Queue Engine
   redis:
+    init: true
     image: redis:7-alpine
-    container_name: silva-redis-dev
     restart: unless-stopped
     ports:
       - "${FORWARD_REDIS_PORT:-6379}:6379"
     volumes:
-      - silva-redisdata:/data
+      - virtuenet-redisdata:/data
     networks:
-      - silva-network
+      - virtuenet-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       timeout: 5s
@@ -84,21 +84,22 @@ services:
 
   # Laravel Horizon queue supervisor
   horizon:
+    init: true
     build:
       context: .
       dockerfile: docker/Dockerfile.dev
-    container_name: silva-horizon-dev
     restart: unless-stopped
     working_dir: /var/www/html
     command: php artisan horizon
     volumes:
       - .:/var/www/html
     environment:
+      - DB_CONNECTION=pgsql
       - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=${DB_DATABASE:-silva_kit}
-      - DB_USERNAME=${DB_USERNAME:-silva_user}
-      - DB_PASSWORD=${DB_PASSWORD:-silva_password}
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-virtuenet}
+      - DB_USERNAME=${DB_USERNAME:-virtuenet}
+      - DB_PASSWORD=${DB_PASSWORD:-virtuenet_dev}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     env_file:
@@ -111,25 +112,26 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - silva-network
+      - virtuenet-network
 
   # Laravel scheduler for Horizon metrics
   scheduler:
+    init: true
     build:
       context: .
       dockerfile: docker/Dockerfile.dev
-    container_name: silva-scheduler-dev
     restart: unless-stopped
     working_dir: /var/www/html
     command: php artisan schedule:work
     volumes:
       - .:/var/www/html
     environment:
+      - DB_CONNECTION=pgsql
       - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=${DB_DATABASE:-silva_kit}
-      - DB_USERNAME=${DB_USERNAME:-silva_user}
-      - DB_PASSWORD=${DB_PASSWORD:-silva_password}
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-virtuenet}
+      - DB_USERNAME=${DB_USERNAME:-virtuenet}
+      - DB_PASSWORD=${DB_PASSWORD:-virtuenet_dev}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     env_file:
@@ -142,25 +144,26 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - silva-network
+      - virtuenet-network
 
   # Laravel Pulse server metrics collector
   pulse-check:
+    init: true
     build:
       context: .
       dockerfile: docker/Dockerfile.dev
-    container_name: silva-pulse-check-dev
     restart: unless-stopped
     working_dir: /var/www/html
     command: php artisan pulse:check
     volumes:
       - .:/var/www/html
     environment:
+      - DB_CONNECTION=pgsql
       - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=${DB_DATABASE:-silva_kit}
-      - DB_USERNAME=${DB_USERNAME:-silva_user}
-      - DB_PASSWORD=${DB_PASSWORD:-silva_password}
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-virtuenet}
+      - DB_USERNAME=${DB_USERNAME:-virtuenet}
+      - DB_PASSWORD=${DB_PASSWORD:-virtuenet_dev}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
     env_file:
@@ -173,14 +176,14 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - silva-network
+      - virtuenet-network
 
 networks:
-  silva-network:
+  virtuenet-network:
     driver: bridge
 
 volumes:
-  silva-dbdata:
+  virtuenet-dbdata:
     driver: local
-  silva-redisdata:
+  virtuenet-redisdata:
     driver: local

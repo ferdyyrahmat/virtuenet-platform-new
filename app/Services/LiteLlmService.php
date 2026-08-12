@@ -19,6 +19,26 @@ class LiteLlmService
         return $this->client()->post('/key/generate', $payload)->throw()->json();
     }
 
+    public function updateKey(string $key, array $changes): array
+    {
+        return $this->client()->post('/key/update', ['key' => $key, ...$changes])->throw()->json();
+    }
+
+    public function blockKey(string $key): array
+    {
+        return $this->client()->post('/key/block', ['key' => $key, 'keys' => [$key]])->throw()->json();
+    }
+
+    public function unblockKey(string $key): array
+    {
+        return $this->client()->post('/key/unblock', ['key' => $key, 'keys' => [$key]])->throw()->json();
+    }
+
+    public function deleteKey(string $key): array
+    {
+        return $this->client()->post('/key/delete', ['keys' => [$key]])->throw()->json();
+    }
+
     public function userInfo(string $userId): array
     {
         return $this->client()->get('/user/info', ['user_id' => $userId])->throw()->json();

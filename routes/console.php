@@ -12,6 +12,11 @@ Artisan::command('inspire', function () {
 
 Schedule::command('horizon:snapshot')->everyFiveMinutes();
 Schedule::command('activitylog:clean')->daily();
+Schedule::command('platform:sync-lark-approvals')
+    ->everyTenMinutes()
+    ->when(fn (): bool => (bool) config('services.lark.approval_enabled'))
+    ->withoutOverlapping()
+    ->onOneServer();
 Schedule::job(new SyncGithubTasks)
     ->everyFiveMinutes()
     ->when(fn (): bool => app(GithubTaskService::class)->configured())
