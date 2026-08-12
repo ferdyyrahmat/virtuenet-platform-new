@@ -118,7 +118,11 @@
             </div>
         </div>
 
-        @include('admin.permissions._assignment')
+        <x-permission-assignment
+            :categories="$permissionCategories"
+            :selected-permissions="$rolePermissions"
+            :role-name="$role->name"
+        />
 
         <div class="row mb-4">
             <div class="col-12 text-end">
@@ -136,64 +140,50 @@
 @section('script-bottom')
 <script>
     $(document).ready(function() {
-        $('.select-all-group').each(function() {
-            var group = $(this).data('group');
-            var allChecked = $('.group-item-' + group).length > 0 && $('.group-item-' + group).length === $('.group-item-' + group + ':checked').length;
-            $(this).prop('checked', allChecked);
-        });
+        function updatePermissionSelection() {
+            var total = $('.permission-checkbox').length;
+            var selected = $('.permission-checkbox:checked').length;
+            $('#permission-selection-count').text(selected + ' of ' + total + ' selected');
+            $('#check-all-global').text(total > 0 && selected === total ? 'Clear all' : 'Select all');
 
-        $('.select-all-group').on('change', function() {
-            var group = $(this).data('group');
-            $('.group-item-' + group).prop('checked', this.checked);
-        });
+            $('.permission-category').each(function() {
+                var category = $(this).data('category');
+                var checkboxes = $('.permission-checkbox[data-category="' + category + '"]');
+                var categorySelected = checkboxes.filter(':checked').length;
+                var toggle = $('.category-toggle[data-category="' + category + '"]');
+                toggle.prop('checked', checkboxes.length > 0 && categorySelected === checkboxes.length);
+                toggle.prop('indeterminate', categorySelected > 0 && categorySelected < checkboxes.length);
+                $(this).find('.category-selection-count').text(categorySelected + '/' + checkboxes.length);
+            });
+        }
 
-        $('input[name="permissions[]"]').on('change', function() {
-            var classes = $(this).attr('class').split(' ');
-            var groupClass = classes.find(function(c) { return c.startsWith('group-item-'); });
-            if (groupClass) {
-                var group = groupClass.replace('group-item-', '');
-                var allChecked = $('.group-item-' + group).length === $('.group-item-' + group + ':checked').length;
-                $('#select_all_' + group).prop('checked', allChecked);
-            }
+        $('.permission-checkbox').on('change', updatePermissionSelection);
+        $('.category-toggle').on('change', function() {
+            $('.permission-checkbox[data-category="' + $(this).data('category') + '"]').prop('checked', this.checked);
+            updatePermissionSelection();
         });
-
-        // Toggle all permissions
-        var globalState = $('input[name="permissions[]"]').length > 0 && $('input[name="permissions[]"]').length === $('input[name="permissions[]"]:checked').length;
-        $('#check-all-global').text(globalState ? 'Clear all permissions' : 'Select all permissions');
         $('#check-all-global').on('click', function() {
-            globalState = !globalState;
-            $('input[name="permissions[]"]').prop('checked', globalState);
-            $(this).text(globalState ? 'Clear all permissions' : 'Select all permissions');
+            var selectAll = $('.permission-checkbox:checked').length !== $('.permission-checkbox').length;
+            $('.permission-checkbox').prop('checked', selectAll);
+            updatePermissionSelection();
         });
-
-        // Real-time Permission Filter Search
         $('#permission-search').on('input', function() {
             var query = $(this).val().toLowerCase();
-            
-            $('.permission-group-card').each(function() {
-                var card = $(this);
-                var visibleItems = 0;
-                
-                card.find('.permission-item').each(function() {
-                    var item = $(this);
-                    var text = item.text().toLowerCase();
-                    var value = item.find('input').val().toLowerCase();
-                    
-                    if (text.includes(query) || value.includes(query)) {
-                        item.show();
-                        visibleItems++;
-                    } else {
-                        item.hide();
-                    }
+            var visibleCategories = 0;
+
+            $('.permission-category').each(function() {
+                var visibleRows = 0;
+                $(this).find('.permission-row').each(function() {
+                    var matches = $(this).text().toLowerCase().includes(query);
+                    $(this).toggle(matches);
+                    visibleRows += matches ? 1 : 0;
                 });
-                
-                if (visibleItems > 0 || query === '') {
-                    card.show();
-                } else {
-                    card.hide();
-                }
+                $(this).toggle(visibleRows > 0);
+                visibleCategories += visibleRows > 0 ? 1 : 0;
             });
+            $('#permission-empty-state').toggleClass('d-none', visibleCategories > 0);
         });
+        updatePermissionSelection();
         // Real-time User Search Filter
         $('#user-search').on('input', function() {
             var query = $(this).val().toLowerCase();

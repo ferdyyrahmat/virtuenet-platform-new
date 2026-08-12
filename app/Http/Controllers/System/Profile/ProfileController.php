@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\System\Profile;
 
 use App\Http\Controllers\Controller;
+use App\Models\SystemNotification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -12,18 +14,16 @@ class ProfileController extends Controller
 {
     public function index()
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = Auth::user()->load(['roles.permissions']);
-        
+
         $permissions = $user->roles->flatMap(function ($role) {
             return $role->permissions;
         })->unique('id');
 
-        $groupedPermissions = $permissions->groupBy(
-            fn ($permission): string => str($permission->name)->beforeLast('.')->toString()
-        );
+        $groupedPermissions = $permissions->groupBy('guard_name');
 
-        $notifications = \App\Models\SystemNotification::where('user_id', $user->id)
+        $notifications = SystemNotification::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -32,12 +32,12 @@ class ProfileController extends Controller
 
     public function updateInfo(Request $request)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = Auth::user();
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
             'phone' => 'nullable|string|max:50',
             'title' => 'nullable|string|max:100',
             'bio' => 'nullable|string|max:1000',
@@ -54,15 +54,15 @@ class ProfileController extends Controller
 
         if ($request->hasFile('avatar')) {
             $file = $request->file('avatar');
-            $fileName = time() . '_' . Str::random(8) . '.' . $file->getClientOriginalExtension();
-            
+            $fileName = time().'_'.Str::random(8).'.'.$file->getClientOriginalExtension();
+
             $uploadPath = public_path('uploads/avatars');
-            if (!file_exists($uploadPath)) {
+            if (! file_exists($uploadPath)) {
                 mkdir($uploadPath, 0777, true);
             }
 
             $file->move($uploadPath, $fileName);
-            $updateData['avatar'] = 'uploads/avatars/' . $fileName;
+            $updateData['avatar'] = 'uploads/avatars/'.$fileName;
         }
 
         $user->update($updateData);
@@ -78,13 +78,13 @@ class ProfileController extends Controller
                 'avatar_url' => $user->avatar_url,
                 'title' => $user->title ?? 'User',
             ],
-            'redirect' => route('v1.profile.index')
+            'redirect' => route('v1.profile.index'),
         ]);
     }
 
     public function updatePassword(Request $request)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = Auth::user();
 
         $request->validate([
@@ -92,16 +92,16 @@ class ProfileController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        if (!Hash::check($request->current_password, $user->getRawOriginal('password'))) {
+        if (! Hash::check($request->current_password, $user->getRawOriginal('password'))) {
             return response()->json([
-                'success'  => false,
-                'message'  => 'Current password does not match our records.',
-                'redirect' => route('v1.profile.index')
+                'success' => false,
+                'message' => 'Current password does not match our records.',
+                'redirect' => route('v1.profile.index'),
             ]);
         }
 
         $user->update([
-            'password' => Hash::make($request->password)
+            'password' => Hash::make($request->password),
         ]);
 
         audit_log('Changed account password');
@@ -114,7 +114,7 @@ class ProfileController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Password updated successfully!',
-            'redirect' => route('v1.profile.index')
+            'redirect' => route('v1.profile.index'),
         ]);
     }
 }

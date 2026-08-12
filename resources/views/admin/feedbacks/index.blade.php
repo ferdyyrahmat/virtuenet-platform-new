@@ -104,7 +104,7 @@
         <div class="col-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-3">
-                    <h5 class="card-title mb-0 fw-bold text-body"><i class="mdi mdi-message-square-text-outline text-primary me-1"></i>User Feedback Entries</h5>
+                    <h5 class="card-title mb-0 fw-bold text-body"><i class="mdi mdi-message-text-outline text-primary me-1"></i>User Feedback Entries</h5>
                     <button type="button" class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modal-submit-feedback">
                         <i class="mdi mdi-plus-circle-outline me-1"></i>Submit New Feedback
                     </button>

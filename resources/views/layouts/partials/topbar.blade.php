@@ -43,7 +43,7 @@
                 <!-- Quick Feedback Icon Button -->
                 <li class="d-none d-sm-flex me-1">
                     <button type="button" class="btn nav-link text-primary" data-bs-toggle="modal" data-bs-target="#global-feedback-modal" title="Submit Feedback or Report Bug">
-                        <i class="mdi mdi-message-heart-outline fs-20 align-middle"></i>
+                        <i class="mdi mdi-message-outline fs-20 align-middle"></i>
                     </button>
                 </li>
 
@@ -151,27 +151,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Dynamic Time-of-Day Greeting (Morning / Afternoon / Evening / Night)
-        const greetingEl = document.getElementById('topbar-greeting-text');
-        if (greetingEl) {
-            const hour = new Date().getHours();
-            const userName = "{{ auth()->user()->name }}";
-            const isIndo = "{{ app()->getLocale() }}" === 'id';
-            let greeting = 'Good Morning';
-
-            if (hour >= 5 && hour < 12) {
-                greeting = isIndo ? 'Selamat Pagi' : 'Good Morning';
-            } else if (hour >= 12 && hour < 17) {
-                greeting = isIndo ? 'Selamat Siang' : 'Good Afternoon';
-            } else if (hour >= 17 && hour < 19) {
-                greeting = isIndo ? 'Selamat Sore' : 'Good Evening';
-            } else {
-                greeting = isIndo ? 'Selamat Malam' : 'Good Night';
-            }
-
-            greetingEl.textContent = `${greeting}, ${userName}`;
-        }
-
         // Dark Mode Toggle
         var btnToggle = document.getElementById('btn-theme-toggle');
         if (btnToggle) {

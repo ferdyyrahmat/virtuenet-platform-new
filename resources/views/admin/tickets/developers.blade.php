@@ -104,7 +104,7 @@
                                 @empty
                                     <tr>
                                         <td colspan="6" class="text-center py-5 text-muted">
-                                            <i class="mdi mdi-account-code-outline fs-36 text-muted d-block mb-2"></i>
+                                            <i class="mdi mdi-account-outline fs-36 text-muted d-block mb-2"></i>
                                             <p class="mb-0 fw-semibold text-dark">No developers added yet.</p>
                                             <small>Click "Add New Developer" to add developers to receive ticket alerts.</small>
                                         </td>

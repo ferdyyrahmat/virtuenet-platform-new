@@ -11,6 +11,7 @@ window.jQuery = window.$ = $
 
 import 'select2';
 import 'select2/dist/css/select2.min.css';
+import './platform';
 
 
 import bootstrap from 'bootstrap/dist/js/bootstrap.min';
@@ -184,4 +185,3 @@ class App {
 }
 
 new App().init();
-

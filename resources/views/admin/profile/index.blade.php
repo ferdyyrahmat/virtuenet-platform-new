@@ -315,7 +315,7 @@
                                     <div class="col">
                                         <div class="card h-100 border border-light-subtle shadow-none">
                                             <div class="card-header bg-body-tertiary py-2">
-                                                <h6 class="m-0 fw-semibold text-primary"><i class="mdi mdi-folder-lock-outline me-1"></i>{{ $group }}</h6>
+                                                <h6 class="m-0 fw-semibold text-primary"><i class="mdi mdi-shield-key-outline me-1"></i>Guard: {{ $group }}</h6>
                                             </div>
                                             <div class="card-body py-2">
                                                 <ul class="list-group list-group-flush">
@@ -323,7 +323,7 @@
                                                         <li class="list-group-item px-0 py-2 border-0 d-flex justify-content-between align-items-center bg-transparent">
                                                             <div>
                                                                 <span class="fw-semibold text-body fs-13">{{ $p->name }}</span>
-                                                        <span class="text-muted d-block fs-11">Permission name · guard_name: web</span>
+                                                        <span class="text-muted d-block fs-11">{{ $p->description ?: 'Granted through an assigned role.' }}</span>
                                                             </div>
                                                             <span class="badge bg-success-subtle text-success fs-11"><i class="mdi mdi-check-circle-outline me-1"></i>Allowed</span>
                                                         </li>

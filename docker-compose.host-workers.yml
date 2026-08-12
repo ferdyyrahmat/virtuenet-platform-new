@@ -1,0 +1,37 @@
+name: virtuenet-platform-workers
+
+x-worker: &worker
+  image: virtuenet-platform-new-runtime:latest
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.dev
+  restart: unless-stopped
+  working_dir: /var/www/html
+  env_file:
+    - .env
+  environment:
+    RUN_APP_SETUP: "false"
+    DB_HOST: host.docker.internal
+    DB_PORT: ${DB_PORT:-3306}
+    REDIS_HOST: host.docker.internal
+    REDIS_PORT: ${FORWARD_REDIS_PORT:-6380}
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  volumes:
+    - .:/var/www/html
+
+services:
+  horizon:
+    <<: *worker
+    container_name: silva-horizon-host
+    command: php artisan horizon
+
+  scheduler:
+    <<: *worker
+    container_name: silva-scheduler-host
+    command: php artisan schedule:work
+
+  pulse-check:
+    <<: *worker
+    container_name: silva-pulse-host
+    command: php artisan pulse:check

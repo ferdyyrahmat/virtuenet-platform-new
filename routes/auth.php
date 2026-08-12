@@ -1,9 +1,10 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
-use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\LarkSsoController;
+use App\Http\Controllers\Auth\LockscreenController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
@@ -13,10 +14,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/register', [RegisteredUserController::class, 'create'])
     ->middleware('guest')
     ->name('register');
-    
+
 Route::post('/registering', [RegisteredUserController::class, 'store'])
-    ->middleware('guest')
-    ->name('register.store');
+        ->middleware('guest')
+        ->name('register.store');
 
 Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])
     ->middleware('guest')
@@ -46,22 +47,15 @@ Route::post('/email/verification-notification', [EmailVerificationNotificationCo
     ->middleware(['auth', 'throttle:6,1'])
     ->name('verification.send');
 
-Route::get('/confirm-password', [ConfirmablePasswordController::class, 'show'])
-    ->middleware('auth')
-    ->name('password.confirm');
-
-Route::post('/confirm-password', [ConfirmablePasswordController::class, 'store'])
-    ->middleware('auth');
-
-Route::get('/lockscreen', [\App\Http\Controllers\Auth\LockscreenController::class, 'show'])
+Route::get('/lockscreen', [LockscreenController::class, 'show'])
     ->middleware('auth')
     ->name('lockscreen');
 
-Route::post('/lockscreen/lock', [\App\Http\Controllers\Auth\LockscreenController::class, 'lock'])
+Route::post('/lockscreen/lock', [LockscreenController::class, 'lock'])
     ->middleware('auth')
     ->name('lockscreen.lock');
 
-Route::post('/lockscreen/unlock', [\App\Http\Controllers\Auth\LockscreenController::class, 'unlock'])
+Route::post('/lockscreen/unlock', [LockscreenController::class, 'unlock'])
     ->middleware('auth')
     ->name('lockscreen.unlock');
 
@@ -69,10 +63,10 @@ Route::get('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout.get');
 
-Route::get('/auth/lark/redirect', [\App\Http\Controllers\Auth\LarkSsoController::class, 'redirect'])
+Route::get('/auth/lark/redirect', [LarkSsoController::class, 'redirect'])
     ->middleware('guest')
     ->name('lark.redirect');
 
-Route::get('/auth/lark/callback', [\App\Http\Controllers\Auth\LarkSsoController::class, 'callback'])
+Route::get('/auth/lark/callback', [LarkSsoController::class, 'callback'])
     ->middleware('guest')
     ->name('lark.callback');

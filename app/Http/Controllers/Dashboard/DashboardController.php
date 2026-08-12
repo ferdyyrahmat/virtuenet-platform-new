@@ -2,63 +2,58 @@
 
 namespace App\Http\Controllers\Dashboard;
 
-use App\Models\Developer;
+use App\Enums\ServiceRequestStatus;
+use App\Http\Controllers\Controller;
+use App\Models\AiAccessCredential;
+use App\Models\ExternalConnection;
+use App\Models\GithubTask;
+use App\Models\ServiceRequest;
 use App\Models\Ticket;
-use App\Models\User;
-use Spatie\Activitylog\Models\Activity;
-use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
-class DashboardController extends BaseController
+class DashboardController extends Controller
 {
-    public function index()
+    public function index(): View
     {
         $user = Auth::user();
+        $requests = ServiceRequest::query();
 
-        if ($user->isDeveloper()) {
-            $developer = Developer::where('user_id', $user->id)->first();
-            $tickets = $developer
-                ? Ticket::where('assigned_developer_id', $developer->id)
-                : Ticket::whereRaw('1 = 0');
-
-            return view('dashboard.developer', [
-                'user' => $user,
-                'stats' => [
-                    'open' => (clone $tickets)->where('status', 'open')->count(),
-                    'in_progress' => (clone $tickets)->where('status', 'in_progress')->count(),
-                    'waiting' => (clone $tickets)->where('status', 'waiting_user')->count(),
-                    'resolved' => (clone $tickets)->whereIn('status', ['resolved', 'closed'])->count(),
-                ],
-                'recentTickets' => (clone $tickets)->with('user')->latest()->take(6)->get(),
-            ]);
+        if (! $user->can('view service requests')) {
+            $requests->where('requester_id', $user->id);
         }
 
-        if ($user->isAdmin()) {
-            return view('dashboard.admin', [
-                'user' => $user,
-                'stats' => [
-                    'users' => User::count(),
-                    'tickets' => Ticket::count(),
-                    'open_tickets' => Ticket::whereIn('status', ['open', 'in_progress', 'waiting_user'])->count(),
-                    'resolved_tickets' => Ticket::whereIn('status', ['resolved', 'closed'])->count(),
-                ],
-                'recentAuditLogs' => Activity::with('causer')->latest()->take(6)->get(),
-                'recentTickets' => Ticket::with('assignedDeveloper')->latest()->take(6)->get(),
-            ]);
-        }
+        $activeStatuses = [
+            ServiceRequestStatus::Submitted,
+            ServiceRequestStatus::UnderReview,
+            ServiceRequestStatus::Approved,
+            ServiceRequestStatus::InProgress,
+            ServiceRequestStatus::WaitingExternal,
+        ];
+        $aiCredentials = ($user->can('view ai usage') ? AiAccessCredential::query() : $user->aiCredentials())
+            ->get(['status', 'models', 'max_budget', 'current_spend']);
+        $aiBudget = (float) $aiCredentials->sum('max_budget');
+        $aiSpend = (float) $aiCredentials->sum('current_spend');
 
-        $myTickets = Ticket::where('user_id', $user->id);
-
-        return view('dashboard.user', [
+        return view('dashboard.index', [
             'user' => $user,
             'stats' => [
-                'total' => (clone $myTickets)->count(),
-                'active' => (clone $myTickets)->whereIn('status', ['open', 'in_progress', 'waiting_user'])->count(),
-                'resolved' => (clone $myTickets)->whereIn('status', ['resolved', 'closed'])->count(),
+                'active' => (clone $requests)->whereIn('status', $activeStatuses)->count(),
+                'review' => (clone $requests)->whereIn('status', [ServiceRequestStatus::Submitted, ServiceRequestStatus::UnderReview])->count(),
+                'revision' => (clone $requests)->where('status', ServiceRequestStatus::RevisionRequested)->count(),
+                'completed' => (clone $requests)->where('status', ServiceRequestStatus::Completed)->count(),
                 'unread' => $user->notifications()->where('is_read', false)->count(),
+                'ai_spend' => $aiSpend,
+                'ai_budget' => $aiBudget,
+                'ai_budget_usage' => $aiBudget > 0 ? min(100, ($aiSpend / $aiBudget) * 100) : 0,
+                'ai_tokens' => $aiCredentials->where('status', 'active')->count(),
+                'ai_models' => $aiCredentials->pluck('models')->flatten()->filter()->unique()->count(),
             ],
-            'recentTickets' => (clone $myTickets)->latest()->take(6)->get(),
+            'recentRequests' => (clone $requests)->with(['requester', 'assignee'])->latest()->take(7)->get(),
+            'connections' => $user->can('manage integrations') ? ExternalConnection::orderBy('provider')->get() : collect(),
+            'aiGateway' => ExternalConnection::where('provider', 'litellm')->first(),
+            'githubTasks' => $user->can('view delivery tasks') ? GithubTask::latest('remote_updated_at')->take(6)->get() : collect(),
+            'openTickets' => Ticket::where('user_id', $user->id)->whereIn('status', ['open', 'in_progress', 'waiting_user'])->count(),
         ]);
-
     }
 }

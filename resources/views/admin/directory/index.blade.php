@@ -46,12 +46,12 @@
                         </div>
                     </div>
                     <div class="d-flex gap-2">
-                        @if(auth()->user()->can('admin.directory.folder'))
+                        @if(auth()->user()->can('create directory folders'))
                             <button type="button" class="btn btn-outline-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modal-new-folder">
                                 <i class="mdi mdi-folder-plus-outline me-1"></i>{{ __('messages.new_folder') }}
                             </button>
                         @endif
-                        @if(auth()->user()->can('admin.directory.upload'))
+                        @if(auth()->user()->can('upload directory files'))
                             <button type="button" class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modal-upload-file">
                                 <i class="mdi mdi-upload me-1"></i>{{ __('messages.upload_file') }}
                             </button>

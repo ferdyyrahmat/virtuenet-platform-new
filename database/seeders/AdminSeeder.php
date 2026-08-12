@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Developer;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -21,7 +22,7 @@ class AdminSeeder extends Seeder
             ['name' => 'Developer'],
             [
                 'description' => 'Level 1 Supreme Authority: Full system access, developer tools, task queues, Redis, and ticket resolution.',
-                'guard_name'  => 'web',
+                'guard_name' => 'web',
                 'is_locked' => true,
             ]
         );
@@ -31,7 +32,7 @@ class AdminSeeder extends Seeder
             ['name' => 'Admin'],
             [
                 'description' => 'Level 2 Management Authority: Manage users, review tickets, view audit trails, and manage system feedbacks.',
-                'guard_name'  => 'web',
+                'guard_name' => 'web',
             ]
         );
 
@@ -40,25 +41,25 @@ class AdminSeeder extends Seeder
             ['name' => 'User'],
             [
                 'description' => 'Level 3 Standard Account: Registered user with access to user dashboard, profile, and ticket submissions.',
-                'guard_name'  => 'web',
+                'guard_name' => 'web',
             ]
         );
 
         // Auto-seed permissions from registered admin routes to Developer and Admin roles
-        $adminAllowedGroups = ['users', 'tickets', 'feedbacks', 'audit-logs'];
+        $adminAllowedGroups = ['users', 'tickets', 'feedbacks', 'audit-logs', 'requests', 'connections', 'github-tasks', 'ai-usage'];
 
         foreach (Route::getRoutes() as $r) {
             $name = $r->getName();
             if ($name && str_starts_with($name, 'admin.')) {
                 $parts = explode('.', $name);
-                $p = Permission::findOrCreate($name, 'web');
 
-                // Developer gets ALL admin permissions
-                $devRole->givePermissionTo($p);
+                foreach ($this->routePermissions($r->gatherMiddleware()) as $permissionName) {
+                    $permission = Permission::findOrCreate($permissionName, 'web');
+                    $devRole->givePermissionTo($permission);
 
-                // Admin gets operational management permissions
-                if (isset($parts[1]) && in_array($parts[1], $adminAllowedGroups)) {
-                    $adminRole->givePermissionTo($p);
+                    if (isset($parts[1]) && in_array($parts[1], $adminAllowedGroups, true)) {
+                        $adminRole->givePermissionTo($permission);
+                    }
                 }
             }
         }
@@ -67,8 +68,8 @@ class AdminSeeder extends Seeder
         $devUser = User::updateOrCreate(
             ['email' => 'ferdyyrahmat@gmail.com'],
             [
-                'name'              => 'Ferdy Rahmat',
-                'password'          => Hash::make('password'),
+                'name' => 'Ferdy Rahmat',
+                'password' => Hash::make('password'),
                 'email_verified_at' => now(),
             ]
         );
@@ -77,16 +78,26 @@ class AdminSeeder extends Seeder
         $devUser->assignRole($devRole);
 
         // Also ensure Developer is registered in developers table for ticket assignment & alerts
-        \App\Models\Developer::updateOrCreate(
+        Developer::updateOrCreate(
             ['email' => $devUser->email],
             [
-                'user_id'          => $devUser->id,
-                'name'             => $devUser->name,
-                'phone'            => $devUser->phone ?? '6289524424936',
-                'is_active'        => true,
+                'user_id' => $devUser->id,
+                'name' => $devUser->name,
+                'phone' => $devUser->phone ?? '6289524424936',
+                'is_active' => true,
             ]
         );
 
-        $this->command->info("✅ Hierarchical Roles (Developer > Admin > User) & Developer User seeded cleanly!");
+        $this->command->info('✅ Hierarchical Roles (Developer > Admin > User) & Developer User seeded cleanly!');
+    }
+
+    private function routePermissions(array $middleware): array
+    {
+        return collect($middleware)
+            ->filter(fn ($name): bool => is_string($name) && str_starts_with($name, 'permission:'))
+            ->flatMap(fn (string $name): array => explode('|', substr($name, 11)))
+            ->filter()
+            ->values()
+            ->all();
     }
 }

@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\System\Permission;
 
 use App\Http\Controllers\Controller;
-use App\Models\Role;
 use App\Models\Permission;
+use App\Models\Role;
+use App\Models\SystemNotification;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use Yajra\DataTables\Facades\DataTables;
 
 class PermissionController extends Controller
@@ -18,26 +17,29 @@ class PermissionController extends Controller
     {
         if ($request->ajax() || $request->wantsJson()) {
             $query = Role::query()->withCount(['permissions', 'users']);
-            if (!Auth::user()->isDeveloper()) {
+            if (! Auth::user()->isDeveloper()) {
                 $query->whereRaw('LOWER(name) <> ?', ['developer']);
             }
-            
+
             return DataTables::of($query)
                 ->addIndexColumn()
                 ->editColumn('name', function ($row) {
-                    return '<span class="badge bg-light text-primary fs-12">' . e($row->name) . '</span>';
+                    return '<span class="badge bg-light text-primary fs-12">'.e($row->name).'</span>';
                 })
                 ->editColumn('description', function ($row) {
                     return e($row->description ?? '-');
                 })
                 ->editColumn('permissions_count', function ($row) {
-                    return '<span class="badge bg-light text-info fs-12">' . $row->permissions_count . ' Permissions</span>';
+                    return '<span class="badge bg-light text-info fs-12">'.$row->permissions_count.' Permissions</span>';
                 })
                 ->editColumn('users_count', function ($row) {
-                    return '<span class="badge bg-light text-success fs-12">' . $row->users_count . ' Users</span>';
+                    return '<span class="badge bg-light text-success fs-12">'.$row->users_count.' Users</span>';
                 })
                 ->addColumn('lock_status', function ($row) {
-                    if (!Auth::user()->isDeveloper()) return '';
+                    if (! Auth::user()->isDeveloper()) {
+                        return '';
+                    }
+
                     return $row->isLocked()
                         ? '<span class="badge bg-warning-subtle text-warning"><i class="mdi mdi-lock-outline me-1"></i>Locked</span>'
                         : '<span class="badge bg-success-subtle text-success"><i class="mdi mdi-lock-open-outline me-1"></i>Unlocked</span>';
@@ -49,39 +51,42 @@ class PermissionController extends Controller
                     if ($row->isLocked()) {
                         $editUrl = route('admin.permissions.edit', $row->id);
                         $unlock = Auth::user()->isDeveloper() && strcasecmp($row->name, 'Developer') !== 0
-                            ? '<button type="button" class="btn btn-sm btn-outline-warning" title="Unlock" onclick="toggleRoleLock(' . $row->id . ', false)"><i class="mdi mdi-lock-open-outline fs-16"></i></button>'
+                            ? '<button type="button" class="btn btn-sm btn-outline-warning" title="Unlock" onclick="toggleRoleLock('.$row->id.', false)"><i class="mdi mdi-lock-open-outline fs-16"></i></button>'
                             : '';
-                        return '<div class="text-center"><a href="' . $editUrl . '" class="btn btn-sm btn-outline-primary me-1" title="Edit"><i class="mdi mdi-square-edit-outline fs-16"></i></a><span class="badge bg-warning-subtle text-warning me-1" title="Locked role"><i class="mdi mdi-lock-outline me-1"></i>Locked</span>' . $unlock . '</div>';
+
+                        return '<div class="text-center"><a href="'.$editUrl.'" class="btn btn-sm btn-outline-primary me-1" title="Edit"><i class="mdi mdi-square-edit-outline fs-16"></i></a><span class="badge bg-warning-subtle text-warning me-1" title="Locked role"><i class="mdi mdi-lock-outline me-1"></i>Locked</span>'.$unlock.'</div>';
                     }
                     $editUrl = route('admin.permissions.edit', $row->id);
                     $deleteUrl = route('admin.permissions.destroy', $row->id);
                     $lock = Auth::user()->isDeveloper()
-                        ? '<button type="button" class="btn btn-sm btn-outline-warning" title="Lock" onclick="toggleRoleLock(' . $row->id . ', true)"><i class="mdi mdi-lock-outline fs-16"></i></button>'
+                        ? '<button type="button" class="btn btn-sm btn-outline-warning" title="Lock" onclick="toggleRoleLock('.$row->id.', true)"><i class="mdi mdi-lock-outline fs-16"></i></button>'
                         : '';
+
                     return '
                         <div class="text-center">
-                            <a href="' . $editUrl . '" class="btn btn-sm btn-outline-primary me-1" title="Edit">
+                            <a href="'.$editUrl.'" class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="mdi mdi-square-edit-outline fs-16"></i>
                             </a>
-                            <button type="button" class="btn btn-sm btn-outline-danger" title="Delete" onclick="deleteRole(' . $row->id . ', \'' . $deleteUrl . '\')">
+                            <button type="button" class="btn btn-sm btn-outline-danger" title="Delete" onclick="deleteRole('.$row->id.', \''.$deleteUrl.'\')">
                                 <i class="mdi mdi-trash-can-outline fs-16"></i>
-                            </button>' . 
-                            $lock . '
+                            </button>'.
+                            $lock.'
                         </div>
                     ';
                 })
                 ->rawColumns(['name', 'permissions_count', 'users_count', 'lock_status', 'actions'])
                 ->make(true);
         }
-        
+
         return view('admin.permissions.index');
     }
 
     public function create()
     {
-        $groupedPermissions = $this->getGroupedPermissions();
+        $permissionCategories = $this->permissionCategories();
         $users = $this->visibleUsers();
-        return view('admin.permissions.create', compact('groupedPermissions', 'users'));
+
+        return view('admin.permissions.create', compact('permissionCategories', 'users'));
     }
 
     public function store(Request $request)
@@ -97,7 +102,7 @@ class PermissionController extends Controller
         $role = Role::create([
             'name' => $request->name,
             'description' => $request->description,
-            'guard_name' => 'web'
+            'guard_name' => 'web',
         ]);
 
         $role->syncPermissions($this->permissionsFromInput($request->input('permissions', [])));
@@ -110,7 +115,7 @@ class PermissionController extends Controller
 
         // Notify assigned users
         foreach ($role->users as $u) {
-            \App\Models\SystemNotification::send(
+            SystemNotification::send(
                 $u,
                 'Role Assigned',
                 "You have been assigned to role: {$role->name}.",
@@ -123,7 +128,7 @@ class PermissionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Role and Permissions created successfully!',
-            'redirect' => route('admin.permissions.index')
+            'redirect' => route('admin.permissions.index'),
         ]);
     }
 
@@ -133,10 +138,10 @@ class PermissionController extends Controller
         $this->ensureRoleVisible($role);
         $rolePermissions = $role->permissions->pluck('name')->toArray();
         $roleUserIds = $role->users->pluck('id')->toArray();
-        $groupedPermissions = $this->getGroupedPermissions();
+        $permissionCategories = $this->permissionCategories();
         $users = $this->visibleUsers();
 
-        return view('admin.permissions.edit', compact('role', 'rolePermissions', 'roleUserIds', 'groupedPermissions', 'users'));
+        return view('admin.permissions.edit', compact('role', 'rolePermissions', 'roleUserIds', 'permissionCategories', 'users'));
     }
 
     public function update(Request $request, $id)
@@ -145,7 +150,7 @@ class PermissionController extends Controller
         $this->ensureRoleVisible($role);
 
         $request->validate([
-            'name' => 'required|string|max:255|unique:roles,name,' . $id,
+            'name' => 'required|string|max:255|unique:roles,name,'.$id,
             'description' => 'nullable|string|max:1000',
             'permissions' => 'nullable|array',
             'users' => 'nullable|array',
@@ -166,7 +171,7 @@ class PermissionController extends Controller
 
         // Notify all users in this role
         foreach ($role->users as $u) {
-            \App\Models\SystemNotification::send(
+            SystemNotification::send(
                 $u,
                 'Role & Permissions Updated',
                 "Your role '{$role->name}' or its granted permissions have been updated.",
@@ -179,7 +184,7 @@ class PermissionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Role and Permissions updated successfully!',
-            'redirect' => route('admin.permissions.index')
+            'redirect' => route('admin.permissions.index'),
         ]);
     }
 
@@ -194,9 +199,9 @@ class PermissionController extends Controller
         audit_log("Deleted role '{$roleName}'", 'role.delete', 'role');
 
         return response()->json([
-            'success'  => true,
-            'message'  => 'Role deleted successfully!',
-            'redirect' => route('admin.permissions.index')
+            'success' => true,
+            'message' => 'Role deleted successfully!',
+            'redirect' => route('admin.permissions.index'),
         ]);
     }
 
@@ -215,54 +220,59 @@ class PermissionController extends Controller
         ]);
     }
 
-    private function getGroupedPermissions()
+    private function permissions()
     {
-        $routes = Route::getRoutes();
-        $groupedPermissions = [];
+        return Permission::query()
+            ->where('guard_name', 'web')
+            ->orderBy('name')
+            ->get();
+    }
 
-        foreach ($routes as $route) {
-            $name = $route->getName();
-            if ($name && Str::startsWith($name, 'admin.')) {
-                $parts = explode('.', $name);
-                
-                if (count($parts) >= 3) {
-                    $suffix = array_pop($parts);
-                    $group = implode('.', $parts);
-                } elseif (count($parts) == 2) {
-                    $group = $name;
-                    $suffix = 'index';
-                } else {
-                    continue;
-                }
+    private function permissionCategories()
+    {
+        $order = [
+            'Roles & Permissions',
+            'User Management',
+            'Service Requests',
+            'AI Access & Usage',
+            'Integrations & Delivery',
+            'Audit Trail',
+            'Support Tickets',
+            'Notifications',
+            'Cloud Directory',
+            'Other',
+        ];
 
-                $groupedPermissions[$group][] = [
-                    'name' => $name,
-                    'suffix' => $suffix,
-                    'uri' => $route->uri(),
-                    'method' => implode('|', $route->methods())
-                ];
-            }
-        }
-        ksort($groupedPermissions);
-        return $groupedPermissions;
+        return $this->permissions()
+            ->groupBy(fn (Permission $permission): string => match (true) {
+                str_contains($permission->name, 'roles') || str_contains($permission->name, 'permissions') => 'Roles & Permissions',
+                str_contains($permission->name, 'users') => 'User Management',
+                str_contains($permission->name, 'service requests') => 'Service Requests',
+                str_contains($permission->name, 'ai usage') => 'AI Access & Usage',
+                str_contains($permission->name, 'integrations') || str_contains($permission->name, 'delivery tasks') => 'Integrations & Delivery',
+                str_contains($permission->name, 'audit logs') => 'Audit Trail',
+                str_contains($permission->name, 'support tickets') || str_contains($permission->name, 'ticket developers') => 'Support Tickets',
+                str_contains($permission->name, 'notification') => 'Notifications',
+                str_contains($permission->name, 'directory') => 'Cloud Directory',
+                default => 'Other',
+            })
+            ->sortBy(fn ($permissions, string $category): int => array_search($category, $order, true));
     }
 
     private function permissionsFromInput(array $names): array
     {
-        $available = collect($this->getGroupedPermissions())
-            ->flatten(1)
-            ->pluck('name');
+        $available = $this->permissions()->keyBy('name');
 
         return collect($names)
-            ->filter(fn ($name): bool => is_string($name) && $available->contains($name))
+            ->filter(fn ($name): bool => is_string($name) && $available->has($name))
             ->unique()
-            ->map(fn (string $name) => Permission::findOrCreate($name, 'web'))
+            ->map(fn (string $name) => $available->get($name))
             ->all();
     }
 
     private function ensureRoleVisible(Role $role): void
     {
-        if ($role->isLocked() && !Auth::user()->isDeveloper()) {
+        if ($role->isLocked() && ! Auth::user()->isDeveloper()) {
             abort(404);
         }
     }

@@ -4,12 +4,14 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
-use Spatie\Permission\Traits\HasRoles;
-use Spatie\Activitylog\Models\Activity;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
+use Spatie\Activitylog\Models\Activity;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
@@ -65,15 +67,31 @@ class User extends Authenticatable
         if ($this->avatar && file_exists(public_path($this->avatar))) {
             return asset($this->avatar);
         }
+
         return asset('images/users/user-5.jpg');
     }
 
-    public function notifications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function notifications(): HasMany
     {
         return $this->hasMany(SystemNotification::class);
     }
 
-    public function activityLogs(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    public function serviceRequests(): HasMany
+    {
+        return $this->hasMany(ServiceRequest::class, 'requester_id');
+    }
+
+    public function assignedServiceRequests(): HasMany
+    {
+        return $this->hasMany(ServiceRequest::class, 'assigned_to');
+    }
+
+    public function aiCredentials(): HasMany
+    {
+        return $this->hasMany(AiAccessCredential::class);
+    }
+
+    public function activityLogs(): MorphMany
     {
         return $this->morphMany(Activity::class, 'causer');
     }
@@ -87,5 +105,4 @@ class User extends Authenticatable
     {
         return $this->hasAnyRole(['Developer', 'Admin', 'Administrator']);
     }
-
 }

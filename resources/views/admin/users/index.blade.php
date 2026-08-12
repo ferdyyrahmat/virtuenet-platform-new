@@ -27,7 +27,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0"><i class="mdi mdi-account-group me-1"></i>{{ __('messages.user_management') }}</h5>
-                    @if(auth()->user()->can('admin.users.create'))
+                    @if(auth()->user()->can('create users'))
                         <a href="{{ route('admin.users.create') }}" class="btn btn-primary btn-sm"><i class="mdi mdi-plus me-1"></i>{{ __('messages.create') }}</a>
                     @endif
                 </div><!-- end card header -->

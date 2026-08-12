@@ -1,81 +1,115 @@
 <?php
 
+use App\Http\Controllers\Admin\AiUsageController as AdminAiUsageController;
+use App\Http\Controllers\Admin\ConnectionController;
+use App\Http\Controllers\Admin\GithubTaskController;
+use App\Http\Controllers\Admin\ServiceRequestController as AdminServiceRequestController;
+use App\Http\Controllers\System\AuditLog\AuditLogController;
+use App\Http\Controllers\System\Directory\DirectoryController;
+use App\Http\Controllers\System\Notification\NotificationController;
+use App\Http\Controllers\System\Permission\PermissionController;
+use App\Http\Controllers\System\Ticket\DeveloperController;
+use App\Http\Controllers\System\Ticket\TicketController;
+use App\Http\Controllers\System\User\UserController;
+
 Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
+    Route::get('ai-usage', [AdminAiUsageController::class, 'index'])->middleware('permission:view ai usage')->name('ai-usage.index');
+    Route::get('ai-usage/data', [AdminAiUsageController::class, 'data'])->middleware('permission:view ai usage')->name('ai-usage.data');
+    Route::prefix('requests')->name('requests.')->group(function () {
+        Route::get('', [AdminServiceRequestController::class, 'index'])->middleware('permission:view service requests')->name('index');
+        Route::get('{serviceRequest}', [AdminServiceRequestController::class, 'show'])->middleware('permission:view service requests')->name('show');
+        Route::post('{serviceRequest}/review', [AdminServiceRequestController::class, 'review'])->middleware('permission:review service requests')->name('review');
+        Route::post('{serviceRequest}/transition', [AdminServiceRequestController::class, 'transition'])->middleware('permission:manage service requests')->name('transition');
+        Route::put('{serviceRequest}/delivery', [AdminServiceRequestController::class, 'delivery'])->middleware('permission:manage service requests')->name('delivery');
+        Route::post('{serviceRequest}/provision-ai', [AdminServiceRequestController::class, 'provision'])->middleware('permission:manage service requests')->name('provision-ai');
+    });
+
+    Route::prefix('connections')->name('connections.')->middleware('permission:manage integrations')->group(function () {
+        Route::get('', [ConnectionController::class, 'index'])->name('index');
+        Route::put('{provider}', [ConnectionController::class, 'update'])->name('update');
+        Route::post('{provider}/test', [ConnectionController::class, 'test'])->name('test');
+    });
+
+    Route::prefix('github-tasks')->name('github-tasks.')->group(function () {
+        Route::get('', [GithubTaskController::class, 'index'])->middleware('permission:view delivery tasks')->name('index');
+        Route::post('sync', [GithubTaskController::class, 'sync'])->middleware('permission:sync delivery tasks')->name('sync');
+    });
+
     Route::prefix('users')->name('users.')->group(function () {
-        Route::get('', [App\Http\Controllers\System\User\UserController::class, 'index'])
-            ->middleware('permission:admin.users.index')->name('index');
-        Route::get('create', [App\Http\Controllers\System\User\UserController::class, 'create'])
-            ->middleware('permission:admin.users.create')->name('create');
-        Route::post('store', [App\Http\Controllers\System\User\UserController::class, 'store'])
-            ->middleware('permission:admin.users.store')->name('store');
-        Route::get('{id}/edit', [App\Http\Controllers\System\User\UserController::class, 'edit'])
-            ->middleware('permission:admin.users.edit')->name('edit');
-        Route::put('{id}/update', [App\Http\Controllers\System\User\UserController::class, 'update'])
-            ->middleware('permission:admin.users.update')->name('update');
-        Route::delete('{id}/destroy', [App\Http\Controllers\System\User\UserController::class, 'destroy'])
-            ->middleware('permission:admin.users.destroy')->name('destroy');
+        Route::get('', [UserController::class, 'index'])
+            ->middleware('permission:view users')->name('index');
+        Route::get('create', [UserController::class, 'create'])
+            ->middleware('permission:create users')->name('create');
+        Route::post('store', [UserController::class, 'store'])
+            ->middleware('permission:create users')->name('store');
+        Route::get('{id}/edit', [UserController::class, 'edit'])
+            ->middleware('permission:edit users')->name('edit');
+        Route::put('{id}/update', [UserController::class, 'update'])
+            ->middleware('permission:edit users')->name('update');
+        Route::delete('{id}/destroy', [UserController::class, 'destroy'])
+            ->middleware('permission:delete users')->name('destroy');
     });
 
     Route::prefix('permissions')->name('permissions.')->group(function () {
-        Route::get('', [App\Http\Controllers\System\Permission\PermissionController::class, 'index'])
-            ->middleware('permission:admin.permissions.index')->name('index');
-        Route::get('create', [App\Http\Controllers\System\Permission\PermissionController::class, 'create'])
-            ->middleware('permission:admin.permissions.create')->name('create');
-        Route::post('store', [App\Http\Controllers\System\Permission\PermissionController::class, 'store'])
-            ->middleware('permission:admin.permissions.store')->name('store');
-        Route::get('{id}/edit', [App\Http\Controllers\System\Permission\PermissionController::class, 'edit'])
-            ->middleware('permission:admin.permissions.edit')->name('edit');
-        Route::put('{id}/update', [App\Http\Controllers\System\Permission\PermissionController::class, 'update'])
-            ->middleware('permission:admin.permissions.update')->name('update');
-        Route::delete('{id}/destroy', [App\Http\Controllers\System\Permission\PermissionController::class, 'destroy'])
-            ->middleware('permission:admin.permissions.destroy')->name('destroy');
-        Route::patch('{id}/lock', [App\Http\Controllers\System\Permission\PermissionController::class, 'toggleLock'])
-            ->middleware('permission:admin.permissions.lock')->name('lock');
+        Route::get('', [PermissionController::class, 'index'])
+            ->middleware('permission:view roles and permissions')->name('index');
+        Route::get('create', [PermissionController::class, 'create'])
+            ->middleware('permission:create roles')->name('create');
+        Route::post('store', [PermissionController::class, 'store'])
+            ->middleware('permission:create roles')->name('store');
+        Route::get('{id}/edit', [PermissionController::class, 'edit'])
+            ->middleware('permission:edit roles and permissions')->name('edit');
+        Route::put('{id}/update', [PermissionController::class, 'update'])
+            ->middleware('permission:edit roles and permissions')->name('update');
+        Route::delete('{id}/destroy', [PermissionController::class, 'destroy'])
+            ->middleware('permission:delete roles')->name('destroy');
+        Route::patch('{id}/lock', [PermissionController::class, 'toggleLock'])
+            ->middleware('permission:lock roles')->name('lock');
     });
 
     Route::prefix('notifications')->name('notifications.')->group(function () {
-        Route::get('', [App\Http\Controllers\System\Notification\NotificationController::class, 'index'])
-            ->middleware('permission:admin.notifications.index')->name('index');
-        Route::post('send-blast', [App\Http\Controllers\System\Notification\NotificationController::class, 'sendBlast'])
-            ->middleware('permission:admin.notifications.send-blast')->name('send-blast');
+        Route::get('', [NotificationController::class, 'index'])
+            ->middleware('permission:view notifications')->name('index');
+        Route::post('send-blast', [NotificationController::class, 'sendBlast'])
+            ->middleware('permission:send notification blasts')->name('send-blast');
     });
 
     Route::prefix('audit-logs')->name('audit-logs.')->group(function () {
-        Route::get('', [App\Http\Controllers\System\AuditLog\AuditLogController::class, 'index'])
-            ->middleware('permission:admin.audit-logs.index')->name('index');
+        Route::get('', [AuditLogController::class, 'index'])
+            ->middleware('permission:view audit logs')->name('index');
     });
 
     Route::prefix('tickets')->name('tickets.')->group(function () {
-        Route::get('', [App\Http\Controllers\System\Ticket\TicketController::class, 'index'])
-            ->middleware('permission:admin.tickets.index')->name('index');
-        Route::get('developers', [App\Http\Controllers\System\Ticket\DeveloperController::class, 'index'])
-            ->middleware('permission:admin.tickets.developers.index')->name('developers.index');
-        Route::post('developers', [App\Http\Controllers\System\Ticket\DeveloperController::class, 'store'])
-            ->middleware('permission:admin.tickets.developers.store')->name('developers.store');
-        Route::put('developers/{id}', [App\Http\Controllers\System\Ticket\DeveloperController::class, 'update'])
-            ->middleware('permission:admin.tickets.developers.update')->name('developers.update');
-        Route::delete('developers/{id}', [App\Http\Controllers\System\Ticket\DeveloperController::class, 'destroy'])
-            ->middleware('permission:admin.tickets.developers.destroy')->name('developers.destroy');
-        Route::get('{id}', [App\Http\Controllers\System\Ticket\TicketController::class, 'show'])
-            ->middleware('permission:admin.tickets.show')->name('show');
-        Route::post('{id}/reply', [App\Http\Controllers\System\Ticket\TicketController::class, 'reply'])
-            ->middleware('permission:admin.tickets.reply')->name('reply');
-        Route::post('{id}/assign', [App\Http\Controllers\System\Ticket\TicketController::class, 'assign'])
-            ->middleware('permission:admin.tickets.assign')->name('assign');
-        Route::delete('{id}', [App\Http\Controllers\System\Ticket\TicketController::class, 'destroy'])
-            ->middleware('permission:admin.tickets.destroy')->name('destroy');
+        Route::get('', [TicketController::class, 'index'])
+            ->middleware('permission:view support tickets')->name('index');
+        Route::get('developers', [DeveloperController::class, 'index'])
+            ->middleware('permission:view ticket developers')->name('developers.index');
+        Route::post('developers', [DeveloperController::class, 'store'])
+            ->middleware('permission:create ticket developers')->name('developers.store');
+        Route::put('developers/{id}', [DeveloperController::class, 'update'])
+            ->middleware('permission:edit ticket developers')->name('developers.update');
+        Route::delete('developers/{id}', [DeveloperController::class, 'destroy'])
+            ->middleware('permission:delete ticket developers')->name('developers.destroy');
+        Route::get('{id}', [TicketController::class, 'show'])
+            ->middleware('permission:view support tickets')->name('show');
+        Route::post('{id}/reply', [TicketController::class, 'reply'])
+            ->middleware('permission:reply to support tickets')->name('reply');
+        Route::post('{id}/assign', [TicketController::class, 'assign'])
+            ->middleware('permission:assign support tickets')->name('assign');
+        Route::delete('{id}', [TicketController::class, 'destroy'])
+            ->middleware('permission:delete support tickets')->name('destroy');
     });
 
     Route::prefix('directory')->name('directory.')->group(function () {
-        Route::get('', [App\Http\Controllers\System\Directory\DirectoryController::class, 'index'])
-            ->middleware('permission:admin.directory.index')->name('index');
-        Route::post('upload', [App\Http\Controllers\System\Directory\DirectoryController::class, 'upload'])
-            ->middleware('permission:admin.directory.upload')->name('upload');
-        Route::post('folder', [App\Http\Controllers\System\Directory\DirectoryController::class, 'makeFolder'])
-            ->middleware('permission:admin.directory.folder')->name('folder');
-        Route::get('download', [App\Http\Controllers\System\Directory\DirectoryController::class, 'download'])
-            ->middleware('permission:admin.directory.download')->name('download');
-        Route::delete('destroy', [App\Http\Controllers\System\Directory\DirectoryController::class, 'destroy'])
-            ->middleware('permission:admin.directory.destroy')->name('destroy');
+        Route::get('', [DirectoryController::class, 'index'])
+            ->middleware('permission:view directory')->name('index');
+        Route::post('upload', [DirectoryController::class, 'upload'])
+            ->middleware('permission:upload directory files')->name('upload');
+        Route::post('folder', [DirectoryController::class, 'makeFolder'])
+            ->middleware('permission:create directory folders')->name('folder');
+        Route::get('download', [DirectoryController::class, 'download'])
+            ->middleware('permission:download directory files')->name('download');
+        Route::delete('destroy', [DirectoryController::class, 'destroy'])
+            ->middleware('permission:delete directory items')->name('destroy');
     });
 });

@@ -1,19 +1,31 @@
-@extends('layouts.vertical', ['title' => __('messages.dashboard')])
+@extends('layouts.vertical', ['title' => 'Platform Dashboard'])
 
 @section('content')
-<div class="container-fluid">
-    <div class="py-3">
-        <h4 class="fs-18 fw-semibold mb-1">{{ __('messages.dashboard') }}</h4>
-        <p class="text-muted mb-0">Platform metrics and application monitoring are available in Laravel Pulse.</p>
+<div class="container-fluid platform-page">
+    <div class="platform-heading"><div><span class="eyebrow">Single source of truth</span><h4>Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ str($user->name)->before(' ') }}</h4><p>Demand, approvals, delivery, AI budget, and integration health in one operational view.</p></div><a href="{{ route('v1.requests.create') }}" class="btn btn-primary btn-sm"><i class="mdi mdi-plus me-1"></i>New request</a></div>
+    <div class="row g-3 mb-4">
+        @foreach([['active','Active requests','clipboard-text-clock-outline','primary'],['review','Waiting review','clipboard-search-outline','warning'],['revision','Needs revision','file-edit-outline','danger'],['completed','Completed','check-decagram-outline','success']] as [$key,$label,$icon,$color])
+            <div class="col-6 col-xl-3"><div class="metric-card"><i class="mdi mdi-{{ $icon }} text-{{ $color }}"></i><span>{{ $label }}</span><strong>{{ $stats[$key] }}</strong></div></div>
+        @endforeach
     </div>
-    <div class="card border-0 shadow-sm">
-        <div class="card-body d-flex align-items-center justify-content-between gap-3">
-            <div>
-                <h5 class="mb-1">Laravel Pulse</h5>
-                <p class="text-muted mb-0">View requests, slow jobs, exceptions, queues, and system health from one monitoring surface.</p>
+    <div class="card platform-card ai-overview-card mb-4">
+        <div class="card-header platform-card-header"><div><strong>AI access overview</strong><small>Current token allocation, spend snapshot, and LiteLLM gateway readiness.</small></div><a href="{{ $user->can('view ai usage') ? route('admin.ai-usage.index') : route('v1.ai-usage.index') }}" class="btn btn-light btn-sm">Open monitoring <i class="mdi mdi-arrow-right ms-1"></i></a></div>
+        <div class="card-body p-4">
+            <div class="ai-overview-grid">
+                <div><span class="ai-icon"><i class="mdi mdi-key-outline"></i></span><small>Active tokens</small><strong>{{ $stats['ai_tokens'] }}</strong></div>
+                <div><span class="ai-icon"><i class="mdi mdi-cash-multiple"></i></span><small>Spend snapshot</small><strong>${{ number_format((float) $stats['ai_spend'], 2) }}</strong></div>
+                <div><span class="ai-icon"><i class="mdi mdi-wallet-outline"></i></span><small>Allocated budget</small><strong>${{ number_format((float) $stats['ai_budget'], 2) }}</strong></div>
+                <div><span class="ai-icon"><i class="mdi mdi-creation-outline"></i></span><small>Available models</small><strong>{{ $stats['ai_models'] }}</strong></div>
+                <div class="ai-budget-summary"><div><small>Budget utilization</small><strong>{{ number_format((float) $stats['ai_budget_usage'], 1) }}%</strong></div><div class="progress" role="progressbar" aria-label="AI budget utilization" aria-valuenow="{{ round($stats['ai_budget_usage']) }}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar" style="width: {{ $stats['ai_budget_usage'] }}%"></div></div></div>
+                <div class="ai-gateway-summary"><span class="connection-icon small"><i data-feather="server"></i></span><div><small>LiteLLM Gateway</small><strong class="text-{{ $aiGateway?->health_status === 'healthy' ? 'success' : 'secondary' }}">{{ str($aiGateway?->health_status ?? 'not configured')->replace('_', ' ')->title() }}</strong></div></div>
             </div>
-            <a href="{{ url('/pulse') }}" class="btn btn-primary flex-shrink-0"><i class="mdi mdi-chart-line me-1"></i>Open Pulse</a>
         </div>
+    </div>
+    <div class="row g-4">
+        <div class="col-xl-8"><div class="card platform-card h-100"><div class="card-header platform-card-header"><div><strong>Request pipeline</strong><small>Latest demand and its current owner or approval stage.</small></div><a href="{{ $user->can('view service requests') ? route('admin.requests.index') : route('v1.requests.index') }}" class="btn btn-light btn-sm">View all</a></div><div class="table-responsive"><table class="table platform-table mb-0"><thead><tr><th>Request</th><th>Service</th><th>Stage / owner</th><th>Status</th><th></th></tr></thead><tbody>@forelse($recentRequests as $item)<tr><td><strong>{{ $item->title }}</strong><small>{{ $item->code }}{{ $user->can('view service requests') ? ' · '.$item->requester->name : '' }}</small></td><td>{{ $item->type->label() }}</td><td>{{ $item->current_stage ?: ($item->assignee?->name ?: 'Delivery queue') }}</td><td><span class="badge bg-{{ $item->status->color() }}-subtle text-{{ $item->status->color() }}">{{ $item->status->label() }}</span></td><td><a href="{{ $user->can('view service requests') ? route('admin.requests.show',$item) : route('v1.requests.show',$item) }}" class="btn btn-light btn-sm">Open</a></td></tr>@empty<tr><td colspan="5"><div class="empty-state py-5">No request activity yet.</div></td></tr>@endforelse</tbody></table></div></div></div>
+        <div class="col-xl-4"><div class="card platform-card mb-4"><div class="card-body p-4"><span class="eyebrow">My workspace</span><div class="quick-stats"><a href="{{ $user->can('view ai usage') ? route('admin.ai-usage.index') : route('v1.ai-usage.index') }}"><i class="mdi mdi-chart-donut"></i><span>AI spend</span><strong>${{ number_format((float)$stats['ai_spend'],2) }}</strong></a><a href="{{ route('v1.tickets.index') }}"><i class="mdi mdi-lifebuoy"></i><span>Open tickets</span><strong>{{ $openTickets }}</strong></a><span><i class="mdi mdi-bell-outline"></i><span>Unread alerts</span><strong>{{ $stats['unread'] }}</strong></span></div></div></div><div class="card platform-card"><div class="card-body p-4"><span class="eyebrow">Start here</span><div class="dashboard-actions">@foreach(\App\Enums\ServiceRequestType::cases() as $requestType)<a href="{{ route('v1.requests.create',['type'=>$requestType->value]) }}"><i class="mdi {{ $requestType->icon() }}"></i><span>{{ $requestType->label() }}</span><i class="mdi mdi-chevron-right"></i></a>@endforeach</div></div></div></div>
+        @if($connections->isNotEmpty())<div class="col-xl-5"><div class="card platform-card h-100"><div class="card-header platform-card-header"><div><strong>Integration health</strong><small>Last verified state of portable external gateways.</small></div><a href="{{ route('admin.connections.index') }}" class="btn btn-light btn-sm">Manage</a></div><div class="card-body p-4"><div class="connection-list">@foreach($connections as $connection)<div><span class="connection-icon small"><i data-feather="{{ $connection->provider === 'litellm' ? 'server' : 'link' }}"></i></span><div><strong>{{ $connection->label }}</strong><small>{{ $connection->last_checked_at?->diffForHumans() ?: 'Not tested yet' }}</small></div><span class="connection-status is-{{ $connection->health_status }}">{{ str($connection->health_status)->title() }}</span></div>@endforeach</div></div></div></div>@endif
+        @if($githubTasks->isNotEmpty())<div class="col-xl-7"><div class="card platform-card h-100"><div class="card-header platform-card-header"><div><strong>GitHub–Lark delivery tasks</strong><small>Current repository work and task-sync state.</small></div><a href="{{ route('admin.github-tasks.index') }}" class="btn btn-light btn-sm">View board</a></div><div class="card-body p-0"><div class="task-list">@foreach($githubTasks as $task)<a href="{{ $task->github_url }}" target="_blank" rel="noopener"><span>#{{ $task->issue_number }}</span><strong>{{ $task->title }}</strong><small>{{ $task->repository }}</small><span class="badge bg-{{ $task->sync_status==='synced'?'success':'warning' }}-subtle text-{{ $task->sync_status==='synced'?'success':'warning' }}">{{ str($task->sync_status)->title() }}</span></a>@endforeach</div></div></div></div>@endif
     </div>
 </div>
 @endsection

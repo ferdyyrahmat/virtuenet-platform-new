@@ -7,9 +7,9 @@
             <h4 class="fs-18 fw-semibold m-0">{{ __('messages.manage_support_tickets') }}</h4>
         </div>
         <div class="text-end">
-            @if(auth()->user()->can('admin.tickets.developers.index'))
+            @if(auth()->user()->can('view ticket developers'))
                 <a href="{{ route('admin.tickets.developers.index') }}" class="btn btn-outline-primary btn-sm me-2 fw-bold">
-                    <i class="mdi mdi-account-code-outline me-1"></i>{{ __('messages.manage_developers') }}
+                    <i class="mdi mdi-account-outline me-1"></i>{{ __('messages.manage_developers') }}
                 </a>
             @endif
             <ol class="breadcrumb m-0 py-0 d-inline-flex align-items-center">
@@ -178,7 +178,7 @@
                                         <td>
                                             @if($t->assignedDeveloper)
                                                 <span class="badge bg-info-subtle text-info fw-semibold">
-                                                    <i class="mdi mdi-account-code me-1"></i>{{ $t->assignedDeveloper->name }}
+                                                    <i class="mdi mdi-account-outline me-1"></i>{{ $t->assignedDeveloper->name }}
                                                 </span>
                                             @else
                                                 <span class="badge bg-secondary-subtle text-muted fs-11">{{ __('messages.unassigned') }}</span>

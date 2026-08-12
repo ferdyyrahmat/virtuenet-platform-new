@@ -10,11 +10,11 @@ File: Main Css File
 //Fonts
 @import url('https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap');
 
-@import "node_modules/bootstrap/scss/functions";
-@import "node_modules/bootstrap/scss/variables";
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
 @import "variables";
 @import "custom-variables";
-@import "node_modules/bootstrap/scss/bootstrap";
+@import "bootstrap/scss/bootstrap";
 
 // Structure
 @import "custom/structure/general";
@@ -67,3 +67,4 @@ File: Main Css File
 @import "custom/pages/authentication";
 @import "custom/pages/landing-page";
 @import "custom/pages/profile";
+@import "custom/pages/platform";

@@ -30,7 +30,7 @@
                         <div class="saprator my-4"><span>or continue with email</span></div>
 
                         <div class="pt-0">
-                            <form method="POST" action="{{ route('login.store') }}" class="my-4">
+                            <form method="POST" action="{{ route('login.store') }}" class="my-4 auth-json-form">
                                 
                                 @csrf
                                 @if (session('error'))

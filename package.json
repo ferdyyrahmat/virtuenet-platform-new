@@ -7,9 +7,9 @@
   },
   "devDependencies": {
     "axios": "^1.8.2",
-    "laravel-vite-plugin": "^1.2.0",
+    "laravel-vite-plugin": "^3.2.0",
     "sass": "1.77.6",
-    "vite": "^5.0"
+    "vite": "^8.2.1"
   },
   "dependencies": {
     "@popperjs/core": "^2.11.8",
@@ -36,26 +36,21 @@
     "jquery-countdown": "^2.2.0",
     "jquery.counterup": "^2.1.0",
     "jsvectormap": "^1.6.0",
-    "moment": "2.22.2",
     "node-waves": "^0.7.6",
     "peity": "^3.3.0",
-    "quill": "^1.3.7",
     "select2": "^4.1.0-rc.0",
     "simple-datatables": "^9.0.4",
     "simplebar": "^5.3.9",
-    "swiper": "^8.0.7",
     "waypoints": "^4.0.1"
   },
   "lavamoat": {
     "allowScripts": {
       "simplebar>core-js#3.49.0": false,
-      "swiper#8.4.7": false,
       "vite>esbuild#0.21.5": false
     }
   },
   "allowScripts": {
     "core-js@3.49.0": true,
-    "esbuild@0.21.5": true,
-    "swiper@8.4.7": true
+    "esbuild@0.21.5": true
   }
 }

@@ -39,27 +39,29 @@ class RoleAndUserSeeder extends Seeder
             ]
         );
 
-        $adminGroups = ['users', 'tickets', 'feedbacks', 'audit-logs'];
+        $adminGroups = ['users', 'tickets', 'feedbacks', 'audit-logs', 'requests', 'connections', 'github-tasks', 'ai-usage'];
         $developerPermissionNames = [];
         $adminPermissionNames = [];
 
         foreach (Route::getRoutes() as $route) {
             $routeName = $route->getName();
-            if (!$routeName || !str_starts_with($routeName, 'admin.')) {
+            if (! $routeName || ! str_starts_with($routeName, 'admin.')) {
                 continue;
             }
 
             $group = explode('.', $routeName)[1] ?? 'system';
-            Permission::findOrCreate($routeName, 'web');
+            foreach ($this->routePermissions($route->gatherMiddleware()) as $permissionName) {
+                Permission::findOrCreate($permissionName, 'web');
+                $developerPermissionNames[] = $permissionName;
 
-            $developerPermissionNames[] = $routeName;
-            if (in_array($group, $adminGroups, true)) {
-                $adminPermissionNames[] = $routeName;
+                if (in_array($group, $adminGroups, true)) {
+                    $adminPermissionNames[] = $permissionName;
+                }
             }
         }
 
-        $developerRole->syncPermissions($developerPermissionNames);
-        $adminRole->syncPermissions($adminPermissionNames);
+        $developerRole->syncPermissions(array_unique($developerPermissionNames));
+        $adminRole->syncPermissions(array_unique($adminPermissionNames));
         $userRole->syncPermissions([]);
 
         $developer = $this->user('Demo Developer', 'developer@example.com', $developerRole);
@@ -90,6 +92,17 @@ class RoleAndUserSeeder extends Seeder
         );
 
         $user->syncRoles([$role]);
+
         return $user;
+    }
+
+    private function routePermissions(array $middleware): array
+    {
+        return collect($middleware)
+            ->filter(fn ($name): bool => is_string($name) && str_starts_with($name, 'permission:'))
+            ->flatMap(fn (string $name): array => explode('|', substr($name, 11)))
+            ->filter()
+            ->values()
+            ->all();
     }
 }

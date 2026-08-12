@@ -1,7 +1,13 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\ImpersonationController;
+use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\RoutingController;
+use App\Http\Controllers\System\Language\LanguageController;
+use App\Http\Controllers\System\Notification\NotificationBellController;
+use App\Http\Controllers\System\Search\SearchController;
+use App\Http\Controllers\Webhook\GithubWebhookController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -14,24 +20,26 @@ use App\Http\Controllers\RoutingController;
 |
 */
 
-require __DIR__ . '/auth.php';
-require __DIR__ . '/partials/admin.php';
-require __DIR__ . '/partials/user.php';
+require __DIR__.'/auth.php';
+require __DIR__.'/partials/admin.php';
+require __DIR__.'/partials/user.php';
 
-Route::get('lang/{lang}', [App\Http\Controllers\System\Language\LanguageController::class, 'switchLang'])->name('lang.switch');
-Route::post('theme/toggle', [App\Http\Controllers\System\Language\LanguageController::class, 'toggleTheme'])->name('theme.toggle');
-Route::get('global-search', [App\Http\Controllers\System\Search\SearchController::class, 'search'])->middleware(['auth'])->name('global.search');
+Route::post('webhooks/github', GithubWebhookController::class)->name('webhooks.github');
+
+Route::get('lang/{lang}', [LanguageController::class, 'switchLang'])->name('lang.switch');
+Route::post('theme/toggle', [LanguageController::class, 'toggleTheme'])->name('theme.toggle');
+Route::get('global-search', [SearchController::class, 'search'])->middleware(['auth'])->name('global.search');
 Route::middleware(['auth'])->prefix('impersonation')->name('impersonation.')->group(function () {
-    Route::post('start/{user}', [App\Http\Controllers\Auth\ImpersonationController::class, 'start'])->name('start');
-    Route::post('stop', [App\Http\Controllers\Auth\ImpersonationController::class, 'stop'])->name('stop');
+    Route::post('start/{user}', [ImpersonationController::class, 'start'])->name('start');
+    Route::post('stop', [ImpersonationController::class, 'stop'])->name('stop');
 });
 Route::middleware(['auth'])->prefix('notifications-bell')->name('notifications.bell.')->group(function () {
-    Route::get('', [App\Http\Controllers\System\Notification\NotificationBellController::class, 'getNotifications'])->name('index');
-    Route::post('{id}/read', [App\Http\Controllers\System\Notification\NotificationBellController::class, 'markAsRead'])->name('read');
-    Route::delete('{id}', [App\Http\Controllers\System\Notification\NotificationBellController::class, 'destroy'])->name('destroy');
-    Route::post('clear-all', [App\Http\Controllers\System\Notification\NotificationBellController::class, 'clearAll'])->name('clear');
+    Route::get('', [NotificationBellController::class, 'getNotifications'])->name('index');
+    Route::post('{id}/read', [NotificationBellController::class, 'markAsRead'])->name('read');
+    Route::delete('{id}', [NotificationBellController::class, 'destroy'])->name('destroy');
+    Route::post('clear-all', [NotificationBellController::class, 'clearAll'])->name('clear');
 });
-Route::get('errors/{code}', function($code) {
+Route::get('errors/{code}', function ($code) {
     if (view()->exists("errors.{$code}")) {
         return response()->view("errors.{$code}");
     }
@@ -40,5 +48,5 @@ Route::get('errors/{code}', function($code) {
 
 Route::get('', [RoutingController::class, 'index'])->middleware(['auth'])->name('root');
 Route::prefix('v1')->name('v1.')->middleware(['auth'])->group(function () {
-    Route::get('dashboard', [App\Http\Controllers\Dashboard\DashboardController::class,'index'])->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 });

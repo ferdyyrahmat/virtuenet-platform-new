@@ -34,19 +34,30 @@
         $('#page-loading').fadeOut();
     }
 
+    function platformToast(icon, message) {
+        return Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: icon,
+            title: message,
+            showConfirmButton: false,
+            timer: icon === 'success' ? 1400 : 3200,
+            timerProgressBar: true,
+        });
+    }
+
     $('form').on('submit', function(e) {
-        // Authentication/session transition forms must use the browser's native
-        // submit so their current CSRF token is sent with the active session.
         if ($(this).hasClass('native-submit-form')) {
             return true;
         }
 
         e.preventDefault();
 
-        // Disable tombol submit setelah form disubmit
         var $form = $(this);
+        var $button = $form.find('button[type="submit"]');
+        var buttonText = $button.text();
         $form.find('button[type="submit"]').attr('disabled', true);
-        $form.find('button[type="submit"]').text('Loading...');
+        $button.text('Processing…');
 
         var formData = new FormData(this);
 
@@ -56,6 +67,9 @@
             data: formData, // Gunakan FormData
             processData: false, // Jangan memproses data
             contentType: false, // Jangan set content type
+            headers: $form.hasClass('auth-json-form') ? {
+                'Accept': 'application/json'
+            } : {},
             beforeSend: function() {
                 showLoading();
                 $form.find('button[type="submit"]').attr('disabled', true);
@@ -63,52 +77,22 @@
             },
             success: function(response) {
                 // Proses selesai, enable kembali tombol
-                $form.find('button[type="submit"]').attr('disabled', false);
-                $form.find('button[type="submit"]').text('Submit');
-                // console.log(response);
+                $button.attr('disabled', false).text(buttonText);
 
                 // Opsional: tangani respons dari Laravel
                 if (response.success) {
-                    // Menampilkan SweetAlert dengan pesan sukses
-                    Swal.fire({
-                        title: 'Success!',
-                        html: response.message,
-                        icon: 'success',
-                        allowOutsideClick: false, // Tidak bisa ditutup dengan klik luar
-                        allowEscapeKey: false, // Tidak bisa ditutup dengan tombol escape
-                        timer: 3000, // Timer 3 detik sebelum redirect
-                        timerProgressBar: true, // Progress bar di bawah modal
-                        didOpen: () => {
-                            Swal.showLoading(); // Menampilkan loading di dalam modal
-                        },
-                        willClose: () => {
-                            // Redirect ke halaman setelah timer selesai
-                            window.location.href = response.redirect;
-                        }
+                    platformToast('success', response.message || 'Saved successfully.').then(function() {
+                        if (response.redirect) window.location.href = response.redirect;
                     });
                 }
                 else {
-                    // Menampilkan SweetAlert dengan pesan error
-                    Swal.fire({
-                        title: 'Error System',
-                        text: response.message,
-                        icon: 'error',
-                        allowOutsideClick: false, // Tidak bisa ditutup dengan klik luar
-                        allowEscapeKey: false, // Tidak bisa ditutup dengan tombol escape
-                    });
-
-                    // Enable kembali tombol submit
-                    $form.find('button[type="submit"]').attr('disabled', false).text(
-                        'Submit');
+                    platformToast('error', response.message || 'Unable to complete the request.');
                 }
             },
             error: function(xhr) {
-                // Enable kembali tombol submit
-                $form.find('button[type="submit"]').attr('disabled', false).text(
-                    'Submit');
+                $button.attr('disabled', false).text(buttonText);
 
-                // Tangani error validasi dari Laravel
-                if (xhr.status === 422) {
+                if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
                     var errors = xhr.responseJSON.errors;
 
                     // Hapus pesan error sebelumnya
@@ -138,13 +122,11 @@
                                 100 // Offset agar tidak terlalu menempel di atas
                         }, 'slow');
                     }
-                } else {
-                    alert('Terjadi kesalahan, coba lagi.');
-                }
+                } else platformToast('error', xhr.responseJSON?.message || 'An unexpected error occurred. Please try again.');
             },
             complete: function() {
                 hideLoading();
-                $form.find('button[type="submit"]').attr('disabled', false);
+                $button.attr('disabled', false).text(buttonText);
             }
         });
     });

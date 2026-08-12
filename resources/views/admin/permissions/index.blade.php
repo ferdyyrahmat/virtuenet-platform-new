@@ -27,7 +27,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0"><i class="mdi mdi-shield-lock me-1"></i>{{ __('messages.roles_permissions') }}</h5>
-                    @if(auth()->user()->can('admin.permissions.create'))
+                    @if(auth()->user()->can('create roles'))
                         <a href="{{ route('admin.permissions.create') }}" class="btn btn-primary btn-sm"><i class="mdi mdi-plus me-1"></i>{{ __('messages.create') }}</a>
                     @endif
                 </div><!-- end card header -->

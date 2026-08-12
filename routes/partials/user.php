@@ -1,20 +1,39 @@
 <?php
 
-Route::prefix('v1')->name('v1.')->middleware(['auth'])->group(function () {
-   Route::prefix('profile')->name('profile.')->group(function () {
-      Route::get('', [App\Http\Controllers\System\Profile\ProfileController::class, 'index'])->name('index');
-      Route::post('info', [App\Http\Controllers\System\Profile\ProfileController::class, 'updateInfo'])->name('update-info');
-      Route::post('password', [App\Http\Controllers\System\Profile\ProfileController::class, 'updatePassword'])->name('update-password');
-      
-      // Sanctum API Tokens Routes
-      Route::post('tokens', [\App\Http\Controllers\System\Profile\SanctumTokenController::class, 'store'])->name('tokens.store');
-      Route::delete('tokens/{id}', [\App\Http\Controllers\System\Profile\SanctumTokenController::class, 'destroy'])->name('tokens.destroy');
-   });
+use App\Http\Controllers\System\Profile\ProfileController;
+use App\Http\Controllers\System\Profile\SanctumTokenController;
+use App\Http\Controllers\User\AiUsageController;
+use App\Http\Controllers\User\ServiceRequestController;
+use App\Http\Controllers\User\UserTicketController;
 
-   Route::prefix('tickets')->name('tickets.')->group(function () {
-      Route::get('', [\App\Http\Controllers\User\UserTicketController::class, 'index'])->name('index');
-      Route::post('store', [\App\Http\Controllers\User\UserTicketController::class, 'store'])->name('store');
-      Route::get('{code}', [\App\Http\Controllers\User\UserTicketController::class, 'show'])->name('show');
-      Route::post('{code}/reply', [\App\Http\Controllers\User\UserTicketController::class, 'reply'])->name('reply');
-   });
+Route::prefix('v1')->name('v1.')->middleware(['auth'])->group(function () {
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('', [ProfileController::class, 'index'])->name('index');
+        Route::post('info', [ProfileController::class, 'updateInfo'])->name('update-info');
+        Route::post('password', [ProfileController::class, 'updatePassword'])->name('update-password');
+
+        // Sanctum API Tokens Routes
+        Route::post('tokens', [SanctumTokenController::class, 'store'])->name('tokens.store');
+        Route::delete('tokens/{id}', [SanctumTokenController::class, 'destroy'])->name('tokens.destroy');
+    });
+
+    Route::prefix('tickets')->name('tickets.')->group(function () {
+        Route::get('', [UserTicketController::class, 'index'])->name('index');
+        Route::post('store', [UserTicketController::class, 'store'])->name('store');
+        Route::get('{code}', [UserTicketController::class, 'show'])->name('show');
+        Route::post('{code}/reply', [UserTicketController::class, 'reply'])->name('reply');
+    });
+
+    Route::prefix('requests')->name('requests.')->group(function () {
+        Route::get('', [ServiceRequestController::class, 'index'])->name('index');
+        Route::get('create', [ServiceRequestController::class, 'create'])->name('create');
+        Route::post('', [ServiceRequestController::class, 'store'])->name('store');
+        Route::get('{serviceRequest}', [ServiceRequestController::class, 'show'])->name('show');
+        Route::put('{serviceRequest}/resubmit', [ServiceRequestController::class, 'resubmit'])->name('resubmit');
+        Route::post('{serviceRequest}/comments', [ServiceRequestController::class, 'comment'])->name('comments.store');
+        Route::post('{serviceRequest}/cancel', [ServiceRequestController::class, 'cancel'])->name('cancel');
+    });
+
+    Route::get('ai-usage', [AiUsageController::class, 'index'])->name('ai-usage.index');
+    Route::get('ai-usage/data', [AiUsageController::class, 'data'])->name('ai-usage.data');
 });

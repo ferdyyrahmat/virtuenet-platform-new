@@ -8,12 +8,8 @@ export default defineConfig({
                    // css
                    'resources/scss/icons.scss',
                    'resources/scss/app.scss',
-                   'node_modules/swiper/swiper-bundle.min.css',
                    'node_modules/glightbox/dist/css/glightbox.min.css',
                    'node_modules/flatpickr/dist/flatpickr.min.css',
-                   'node_modules/quill/dist/quill.core.css',
-                   'node_modules/quill/dist/quill.snow.css',
-                   'node_modules/quill/dist/quill.bubble.css', 
                    'node_modules/datatables.net-bs5/css/dataTables.bootstrap5.min.css',
                    'node_modules/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css',
                    'node_modules/datatables.net-keytable-bs5/css/keyTable.bootstrap5.min.css',
@@ -30,7 +26,6 @@ export default defineConfig({
                    'resources/js/pages/widgets.init.js',
                    'resources/js/pages/glightbox.init.js',
                    'resources/js/pages/form-picker.js',
-                   'resources/js/pages/quilljs.init.js',
                    'resources/js/pages/datatable.init.js',
                    'resources/js/pages/coming-soon.init.js',
    
@@ -39,7 +34,6 @@ export default defineConfig({
    
                    // Chart
                    'resources/js/pages/apexcharts-line.init.js',
-                   'resources/js/pages/apexcharts-area.init.js', 
                    'resources/js/pages/apexcharts-column.init.js',
                    'resources/js/pages/apexcharts-bar.init.js',
                    'resources/js/pages/apexcharts-mixed.init.js',
@@ -55,7 +49,6 @@ export default defineConfig({
                    'resources/js/pages/apexcharts-range-area.init.js',
                    'resources/js/pages/apexcharts-scatter.init.js',
                    'resources/js/pages/apexcharts-treemap.init.js',
-                   'resources/js/pages/apexcharts-timeline.init.js',
    
                    // Google and Vector Map
                    'resources/js/pages/vector-maps.init.js',

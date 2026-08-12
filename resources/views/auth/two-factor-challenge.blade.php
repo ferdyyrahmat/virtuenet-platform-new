@@ -25,7 +25,7 @@
                             </div>
                         @endif
 
-                        <form action="{{ route('two-factor.login.store') }}" method="POST" id="form-2fa-code">
+                        <form action="{{ route('two-factor.login.store') }}" method="POST" id="form-2fa-code" class="auth-json-form">
                             @csrf
 
                             <div class="mb-3" id="group-code">
