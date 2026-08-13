@@ -1,55 +1,73 @@
+x-app-build: &app-build
+  context: .
+  dockerfile: docker/Dockerfile.prod
+
+x-runtime-environment: &runtime-environment
+  APP_NAME: ${APP_NAME:-VirtueNet Platform}
+  APP_ENV: ${APP_ENV:-production}
+  APP_KEY: ${APP_KEY:?APP_KEY is required}
+  APP_DEBUG: ${APP_DEBUG:-false}
+  APP_URL: ${APP_URL:?APP_URL is required}
+  OCTANE_SERVER: frankenphp
+  OCTANE_HTTPS: ${OCTANE_HTTPS:-false}
+  LOG_CHANNEL: ${LOG_CHANNEL:-stack}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DB_CONNECTION: pgsql
+  DB_HOST: db
+  DB_PORT: 5432
+  DB_DATABASE: ${DB_DATABASE:-virtuenet}
+  DB_USERNAME: ${DB_USERNAME:-virtuenet}
+  DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-null}
+  SESSION_DRIVER: ${SESSION_DRIVER:-database}
+  CACHE_STORE: ${CACHE_STORE:-redis}
+  QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
+  PULSE_ENABLED: ${PULSE_ENABLED:-true}
+  PULSE_PATH: ${PULSE_PATH:-pulse}
+  PULSE_STORAGE_DRIVER: ${PULSE_STORAGE_DRIVER:-database}
+  PULSE_INGEST_DRIVER: ${PULSE_INGEST_DRIVER:-storage}
+  PULSE_SERVER_NAME: ${PULSE_SERVER_NAME:-app}
+  LARK_APPROVAL_ENABLED: ${LARK_APPROVAL_ENABLED:-false}
+  LARK_APPROVAL_OUTBOUND_ENABLED: ${LARK_APPROVAL_OUTBOUND_ENABLED:-false}
+
+x-app-runtime: &app-runtime
+  init: true
+  build: *app-build
+  image: ${APP_IMAGE:-virtuenet-platform:local}
+  restart: unless-stopped
+  working_dir: /app
+  env_file:
+    - .env
+  environment: *runtime-environment
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks:
+    - virtuenet-network
+
 services:
-  # Production Octane / FrankenPHP application
+  # Public HTTP application. Coolify terminates TLS and proxies directly to :8000.
   app:
-    init: true
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.prod
+    <<: *app-runtime
     restart: always
-    working_dir: /app
+    expose:
+      - "8000"
     environment:
-      - RUN_APP_SETUP=true
-      - APP_ENV=production
-      - APP_DEBUG=false
-      - DB_CONNECTION=pgsql
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_DATABASE=${DB_DATABASE:-virtuenet}
-      - DB_USERNAME=${DB_USERNAME:-virtuenet}
-      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    env_file:
-      - .env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    networks:
-      - virtuenet-prod-network
+      <<: *runtime-environment
+      RUN_APP_SETUP: "true"
     healthcheck:
       test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8000/health/live') === false ? 1 : 0);"]
       interval: 10s
       timeout: 5s
+      start_period: 30s
       retries: 6
 
-  # Production Nginx Server
-  web:
-    init: true
-    image: nginx:alpine
-    restart: always
-    ports:
-      - "${HTTP_PORT:-80}:80"
-    volumes:
-      - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      app:
-        condition: service_healthy
-    networks:
-      - virtuenet-prod-network
-
-  # Production PostgreSQL Database
+  # PostgreSQL is private to the application network in dev/prod.
   db:
     image: postgres:16-alpine
     init: true
@@ -59,122 +77,82 @@ services:
       POSTGRES_USER: ${DB_USERNAME:-virtuenet}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
-      - virtuenet-prod-dbdata:/var/lib/postgresql/data
+      - virtuenet-dbdata:/var/lib/postgresql/data
     networks:
-      - virtuenet-prod-network
+      - virtuenet-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      timeout: 10s
-      retries: 5
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  # Production Redis Cache & Queue Engine
+  # Redis remains internal; only Laravel services can reach it.
   redis:
-    init: true
     image: redis:7-alpine
+    init: true
     restart: always
     volumes:
-      - virtuenet-prod-redisdata:/data
+      - virtuenet-redisdata:/data
     networks:
-      - virtuenet-prod-network
+      - virtuenet-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
-  # Laravel Horizon queue supervisor
+  # Same immutable Laravel image, separate long-running process.
   horizon:
-    init: true
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.prod
+    <<: *app-runtime
     restart: always
-    working_dir: /app
     command: php artisan horizon
     environment:
-      - APP_ENV=production
-      - DB_CONNECTION=pgsql
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_DATABASE=${DB_DATABASE:-virtuenet}
-      - DB_USERNAME=${DB_USERNAME:-virtuenet}
-      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    env_file:
-      - .env
+      <<: *runtime-environment
+      RUN_APP_SETUP: "false"
     depends_on:
-      - app
-      - db
-      - redis
-    networks:
-      - virtuenet-prod-network
+      app:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
-  # Laravel scheduler for Horizon metrics
   scheduler:
-    init: true
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.prod
+    <<: *app-runtime
     restart: always
-    working_dir: /app
     command: php artisan schedule:work
-    env_file:
-      - .env
     environment:
-      - APP_ENV=production
-      - APP_DEBUG=false
-      - DB_CONNECTION=pgsql
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_DATABASE=${DB_DATABASE:-virtuenet}
-      - DB_USERNAME=${DB_USERNAME:-virtuenet}
-      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      <<: *runtime-environment
+      RUN_APP_SETUP: "false"
     depends_on:
+      app:
+        condition: service_healthy
       db:
         condition: service_healthy
       redis:
-        condition: service_started
-    networks:
-      - virtuenet-prod-network
+        condition: service_healthy
 
-  # Laravel Pulse server metrics collector
   pulse-check:
-    init: true
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.prod
+    <<: *app-runtime
     restart: always
-    working_dir: /app
     command: php artisan pulse:check
-    env_file:
-      - .env
     environment:
-      - APP_ENV=production
-      - APP_DEBUG=false
-      - DB_CONNECTION=pgsql
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_DATABASE=${DB_DATABASE:-virtuenet}
-      - DB_USERNAME=${DB_USERNAME:-virtuenet}
-      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      <<: *runtime-environment
+      RUN_APP_SETUP: "false"
     depends_on:
+      app:
+        condition: service_healthy
       db:
         condition: service_healthy
       redis:
-        condition: service_started
-    networks:
-      - virtuenet-prod-network
+        condition: service_healthy
 
 networks:
-  virtuenet-prod-network:
+  virtuenet-network:
     driver: bridge
 
 volumes:
-  virtuenet-prod-dbdata:
+  virtuenet-dbdata:
     driver: local
-  virtuenet-prod-redisdata:
+  virtuenet-redisdata:
     driver: local
