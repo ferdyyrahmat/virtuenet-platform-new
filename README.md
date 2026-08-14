@@ -1,6 +1,6 @@
-# 🎨 Silva Kit
+# 🎨 Silva Kit — VirtueNet Platform
 
-> A modern **Laravel 12** admin panel starter kit built with the [Silva Admin Template](https://zoyothemes.com/silva/html/) by Zoyothemes. Equipped with essential system modules, dynamic multi-role dashboards, user impersonation, ticketing, queue management, database tools, beautiful UI, and developer-friendly architecture — ready for rapid production development.
+> A modern **Laravel 13** admin panel built on the [Silva Admin Template](https://zoyothemes.com/silva/html/) by Zoyothemes. This is the customized **`virtuenet`** branch: Spatie RBAC (route-based permissions), Lark SSO, support ticketing, audit trail, notification blast, and more.
 
 ---
 
@@ -8,11 +8,14 @@
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | Laravel 12, PHP 8.2+ |
+| **Backend** | Laravel 13, PHP 8.3+ |
 | **Frontend** | Bootstrap 5.3, SCSS, Vite |
-| **Database** | MySQL 8.0 / SQLite |
-| **Object Storage** | MinIO (S3 Compatible Storage) |
+| **Database** | SQLite (default) / MySQL 8.0 (Docker) |
+| **Object Storage** | MinIO (S3 Compatible Storage, Docker dev) |
 | **DataTables** | Yajra DataTables (Server-side) |
+| **Auth / RBAC** | Laravel Fortify + Spatie Permission |
+| **Jobs / Monitor** | Laravel Horizon, Laravel Pulse |
+| **Audit** | spatie/laravel-activitylog |
 | **UI Template** | Silva Admin by Zoyothemes |
 
 ---
@@ -21,10 +24,10 @@
 
 ### Prerequisites
 
-- PHP >= 8.2
+- PHP >= 8.3
 - Composer
 - Node.js >= 18 & npm
-- MySQL 8.0
+- SQLite (default) or MySQL 8.0
 
 ---
 
@@ -44,9 +47,9 @@ docker compose exec app php artisan migrate --seed
 ```
 
 - 🌐 **Web Application**: [http://localhost:8080](http://localhost:8080)
-- 🗄️ **MySQL Database**: `localhost:3306` (`DB_DATABASE=silva_kit`)
+- 🗄️ **MySQL Database**: `localhost:3306`
 - 🪣 **MinIO Console (Object Storage Dashboard)**: [http://localhost:9001](http://localhost:9001) (`user: minioadmin / pass: minioadmin`)
-- 📦 **MinIO S3 API Endpoint**: `http://localhost:9000` (Default bucket: `silva-bucket`)
+- 📦 **MinIO S3 API Endpoint**: `http://localhost:9000`
 
 #### 2. Production Deployment Mode
 
@@ -61,8 +64,8 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/ferdyyrahmat/silva-kit-new.git
-cd silva-kit-new
+git clone https://github.com/ferdyyrahmat/virtuenet-platform-new.git
+cd virtuenet-platform-new
 
 # 2. Install PHP dependencies
 composer install
@@ -84,156 +87,138 @@ npm run build
 php artisan serve
 ```
 
+> Default setup uses SQLite (`database/database.sqlite`). For MySQL, set the credentials in `.env` before migrating.
+
 ---
 
 ### 🔑 Default Credentials
 
-When running `php artisan db:seed` (or `RoleAndUserSeeder`), the system creates three default accounts:
+When running `php artisan db:seed` (`RoleAndUserSeeder`), the system creates three default accounts:
 
 | Role | Email | Password | Access Level |
 |------|-------|----------|--------------|
-| **Developer** | `developer@example.com` | `password` | Full system access, developer tools, database manager, queue monitor |
-| **Admin** | `admin@example.com` | `password` | System administration, user management, tickets, audit logs, settings |
+| **Developer** | `developer@example.com` | `password` | Full access (all permissions), Horizon/Pulse, infrastructure |
+| **Admin** | `admin@example.com` | `password` | System administration, user & permission management, tickets, audit logs, notifications |
 | **User** | `user@example.com` | `password` | Profile management, personal API tokens, support tickets |
 
 ---
 
 ## 🌟 Global Features
 
-### 🔐 Authentication & OAuth 2FA System
-- Standard Login, Register, Password Reset, and Logout.
-- **Lock Screen**: Session-based lock screen requiring user password/PIN unlock.
-- **Two-Factor Authentication (2FA)**: TOTP Authenticator apps (Google Authenticator, Authy) with SVG QR code setup and emergency recovery codes.
-- **Lark SSO Login**: Seamless single sign-on with Lark accounts (domain allowlist via `LARK_ALLOWED_DOMAINS`).
+### 🔐 Authentication
+- Login & logout via Laravel Fortify.
+- Registration with automatic email verification (`email_verified_at` set on create — mirrors Lark SSO behavior; no verification e-mail is sent).
+- Password reset & confirm-password flows (Fortify).
+- **Lock Screen**: session-based lock requiring the user's password to unlock (`/lockscreen`).
+- **Lark SSO**: single sign-on via Lark accounts with a domain allowlist (`LARK_ALLOWED_DOMAINS`), configured in `config/services.php`.
 
-### 🎭 User Impersonation System
-- Administrators can impersonate any registered user to inspect the system from their perspective.
-- **Sticky Impersonation Banner**: Top warning banner indicating active impersonation session with a quick "Stop Impersonating" button.
+### 🎭 User Impersonation
+- Admins can impersonate any registered user to inspect the system from their perspective (`/impersonation/start/{user}`), with a sticky warning banner and quick exit control.
 
-### 🔒 Role & Permission System (with Locked Roles)
-- Dynamic route-based access control with custom `check_permission` middleware.
-- **Role Locking Protection**: System roles (e.g. Developer) can be locked to prevent accidental deletion or unauthorized attribute modification.
-- Complete CRUD interface for roles and permissions with group mapping.
+### 🔒 Role & Permission System (Spatie, route-based)
+- Roles and permissions managed with `spatie/laravel-permission`.
+- **Permission names == admin route names** (`admin.users.index`, `admin.tickets.reply`, …). Routes use the `permission:` middleware alias.
+- **Role locking**: critical system roles (e.g. Developer, Admin) can be locked against deletion or attribute changes.
+- Full CRUD interface for roles & permissions at `/admin/permissions`.
 
-### 📊 Multi-Role Responsive Dashboards
-- Intelligent dashboard routing based on user role:
-  - **Developer Dashboard**: High-level system statistics, server environment info, database status, and developer quick links.
-  - **Admin Dashboard**: System metrics, user counts, ticket summaries, audit trail highlights, and health monitor cards.
-  - **User Dashboard**: Personal profile overview, active support tickets status, and recent notifications.
+### 📊 Multi-Role Dashboards
+- **Developer Dashboard**: ticket stats for tickets assigned to the developer, recent assigned tickets.
+- **Admin Dashboard**: user & ticket counts, recent audit log entries, recent tickets.
+- **User Dashboard**: own ticket stats, recent tickets, unread notification count.
+- `/v1/dashboard` redirects based on role (`isDeveloper`, `isAdmin`, otherwise user).
 
-### 🎟️ Support Ticket System & Developer Portal
-- **User Support Ticketing**: Users can create, view, reply to, and track support tickets.
-- **Admin & Developer Management**: Admins and developers can assign tickets to technical staff, update status (Open, In Progress, Resolved, Closed), and reply to user inquiries.
+### 🎟️ Support Ticket System
+- **User portal** (`/v1/tickets`): create, view by ticket code, and reply.
+- **Admin panel** (`/admin/tickets`): DataTables listing, show, reply, assign to a developer, destroy.
+- **Developer management** (`/admin/tickets/developers`): assignable developer records.
+- Statuses: `open`, `in_progress`, `waiting_user`, `resolved`, `closed`.
 
-### ⚡ Queue Manager & Job Monitor
-- Monitor pending and failed queue jobs via `/admin/queues`.
-- View exception details, retry individual failed jobs, or purge queue lists safely.
+### 🔔 Notification Bell & Blast
+- Notification bell with unread count, mark-as-read, delete, and clear-all (AJAX, routes under `/notifications-bell`).
+- **Notification Blast**: broadcast to all users or a role group (`/admin/notifications`).
+- Global helper `send_notification($title, $message, $url)` (`app/Helpers/helpers.php`).
+
+### 📜 Audit Trail (spatie/laravel-activitylog)
+- Automated logging of logins (password & Lark), user/role changes, impersonation events, and more.
+- View at `/admin/audit-logs` (DataTables).
+- Global helper `audit_log($description)`.
 
 ### 📁 Directory & File Manager
-- Web-based Cloud / Local Storage File Manager accessible at `/admin/directory`.
-- Supports file uploads, folder creation, file deletion, zip archive downloading, and storage quota settings.
+- Web-based file manager at `/admin/directory` supporting upload, folder creation, download, and delete via the configured filesystem (S3/MinIO or local).
 
-### 🛠️ Database Management Tools
-- Dedicated developer database control view (`/admin/database`).
-- View table statistics, row counts, and execute database clearing or role/user re-seeding commands directly from the panel.
-
-### ⚙️ System Settings (Branding & WebSockets)
-- **Branding Settings**: Customize Application Name, Brand Logos, Favicon, and Footer copyright text.
-- **WebSocket Settings**: Configure Pusher / Laravel Reverb credentials with an interactive real-time connectivity tester.
-
-### 👤 User Profile & API Token Manager
-- Edit user details (Name, Email, Phone, Location, Avatar).
-- Auto center-crop avatar upload (1:1 circular ratio).
-- Change password with current password validation.
-- Manage **Sanctum Personal Access Tokens** (Generate, view, and revoke API tokens).
+### 💬 Feedback
+- Feedback submissions reviewed at `/admin/feedbacks` with status updates and deletion.
 
 ### 👥 User Management (Admin)
-- Server-side Yajra DataTables listing with search, sorting, and pagination.
-- Full user CRUD operations with role and permission assignments.
+- Server-side Yajra DataTables listing at `/admin/users` with full CRUD and role/permission assignment.
 
-### 🌙 Dark Mode & 🌐 Multi-Language (i18n)
-- **Dark Mode**: Seamless toggle between Light and Dark themes with session persistence.
-- **Multi-Language**: Click-to-toggle between **Bahasa Indonesia (ID)** and **English (EN)** in topbar. Translation files organized under `lang/id/` and `lang/en/`.
+### 👤 User Profile & API Tokens
+- Edit user details (name, email, phone, location, avatar at `/v1/profile`).
+- Change password with current password validation.
+- Manage **Sanctum Personal Access Tokens** (create & revoke).
 
-### 🔍 Global Search
-- Real-time AJAX search bar in topbar matching routes, navigation menus, and system pages.
+### 🚦 Queue & Server Monitoring
+- **Horizon** dashboard at `/horizon` (admin only, gate `viewHorizon`).
+- **Pulse** dashboard at `/pulse` (admin only, gate `viewPulse`).
 
-### 🔔 Notification Bell & Inbox System
-- Real-time notification updates with unread count badge & AJAX polling.
-- **Notification Blast**: Broadcast system notifications to all users or specific roles (`/admin/notifications`).
-- Profile Inbox tab (`/v1/profile#tab-notifications`) and global helper function `send_notification($title, $message, $url)`.
+### 🔍 Global Search, Dark Mode & i18n
+- Global AJAX search in the topbar (`/global-search`).
+- Dark/light theme toggle with session persistence (`/theme/toggle`).
+- Multi-language switching between **Bahasa Indonesia (ID)** and **English (EN)**; files under `lang/id/` and `lang/en/`.
 
-### 📜 Audit Trail Logging System
-- Automated logging for login/logout, user creation/updates, role modifications, impersonation events, and system settings changes.
-- View logs via `/admin/audit-logs` DataTables view or trigger via global helper `audit_log($description)`.
-
-### 🛠️ Maintenance Mode
-- Toggle maintenance mode from settings with custom title and message.
-- Automatic bypass for users with the **Admin** role.
-- Dynamic persistence using `system_settings` table.
-
-### 📊 System Health Monitor Widget
-- Live server metrics card container on Admin Dashboard: Database latency, MinIO Object Storage status, RAM memory usage, and Disk space capacity.
-
-### 💾 Automated Backup Engine
-- Database & asset backup management with MinIO S3 object storage synchronization via `spatie/laravel-backup`.
-- Manual backup trigger & zip archive download from Admin Panel (`/admin/backups`).
-
-### 🔑 API Engine & Swagger OpenAPI Documentation
-- Laravel Sanctum token-authenticated REST API endpoint structure.
-- Interactive OpenAPI / Swagger REST API documentation generated at `/api/documentation`.
+### 🔑 API & Swagger
+- Sanctum-authenticated API endpoint `/api/user`.
+- Swagger/OpenAPI docs at `/api/documentation` (`darkaonline/l5-swagger`).
 
 ---
 
 ## 📁 Project Structure
 
 ```
-silva-kit-new/
+virtuenet-platform-new/
 ├── app/
+│   ├── Actions/Fortify/           # Custom Fortify actions (CreateNewUser, UpdateUser*…)
 │   ├── Helpers/
-│   │   └── helpers.php           # Global helper functions (send_notification, audit_log)
+│   │   └── helpers.php            # Global helpers (send_notification, audit_log)
 │   ├── Http/
 │   │   ├── Controllers/
-│   │   │   ├── Api/              # REST API & Swagger Controllers
-│   │   │   ├── Auth/             # Login, Register, Lockscreen, 2FA, Lark SSO, Impersonation
-│   │   │   ├── Dashboard/        # Role-based Dashboard controller
-│   │   │   ├── System/           # Admin system modules
-│   │   │   │   ├── AuditLog/     # Audit Trail controller
-│   │   │   │   ├── Backup/       # Backup Manager controller
-│   │   │   │   ├── Database/     # Database Management controller
-│   │   │   │   ├── Directory/    # File & Directory Manager controller
-│   │   │   │   ├── Feedback/     # Feedback controller
-│   │   │   │   ├── Language/     # Language & Theme toggle
-│   │   │   │   ├── Maintenance/  # Maintenance Mode controller
-│   │   │   │   ├── Notification/ # Bell & Blast notification controllers
-│   │   │   │   ├── Permission/   # Role & Permission controller (with locking)
-│   │   │   │   ├── Profile/      # Profile & Sanctum token controller
-│   │   │   │   ├── Queue/        # Queue Manager controller
-│   │   │   │   ├── Search/       # Global search controller
-│   │   │   │   ├── Setting/      # Branding & WebSocket settings controllers
-│   │   │   │   ├── Ticket/       # Admin & Developer ticket controllers
-│   │   │   │   └── User/         # Admin User CRUD controller
-│   │   │   └── User/             # User ticket controller
+│   │   │   ├── Api/               # SwaggerDocsController (api.user)
+│   │   │   ├── Auth/              # Fortify, Lockscreen, Lark SSO, Impersonation
+│   │   │   ├── Dashboard/         # Role-based DashboardController
+│   │   │   ├── System/            # Admin system modules
+│   │   │   │   ├── AuditLog/      # Audit trail controller
+│   │   │   │   ├── Directory/     # File & Directory manager
+│   │   │   │   ├── Feedback/      # Feedback controller
+│   │   │   │   ├── Language/      # Language & theme toggle
+│   │   │   │   ├── Notification/  # Bell & Blast controllers
+│   │   │   │   ├── Permission/    # Role & Permission controller (with locking)
+│   │   │   │   ├── Profile/       # Profile & Sanctum token controllers
+│   │   │   │   ├── Search/        # Global search controller
+│   │   │   │   ├── Ticket/        # Admin & developer ticket controllers
+│   │   │   │   └── User/          # Admin user CRUD controller
+│   │   │   └── User/              # User ticket controller
+│   │   │   └── RoutingController   # Root route
 │   │   └── Middleware/
 │   │       ├── CheckLockscreen.php
-│   │       ├── CheckMaintenanceMode.php
-│   │       ├── CheckPermission.php
 │   │       └── SetLocale.php
 │   ├── Models/
-│   │   ├── AuditLog.php
 │   │   ├── Developer.php
 │   │   ├── Feedback.php
 │   │   ├── NotificationBlast.php
 │   │   ├── Permission.php
 │   │   ├── Role.php
 │   │   ├── SystemNotification.php
-│   │   ├── SystemSetting.php
 │   │   ├── Ticket.php
 │   │   ├── TicketReply.php
 │   │   └── User.php
+│   ├── Providers/
+│   │   ├── AppServiceProvider.php # Gates (developer bypass, viewPulse), login audit listener
+│   │   ├── FortifyServiceProvider.php
+│   │   ├── HorizonServiceProvider.php # Gate viewHorizon
+│   │   └── RouteServiceProvider.php
 │   └── Services/
-│       ├── SystemHealthService.php
-│       └── TwoFactorService.php
+│       ├── LarkService.php
+│       └── TicketNotificationService.php
 ├── database/
 │   ├── migrations/
 │   └── seeders/                  # DatabaseSeeder, RoleAndUserSeeder
@@ -245,23 +230,23 @@ silva-kit-new/
 │   ├── entrypoint.sh
 │   └── entrypoint.prod.sh
 ├── lang/
-│   ├── en/                       # English translations
-│   └── id/                       # Indonesian translations
+│   ├── en/messages.php
+│   └── id/messages.php
 ├── resources/
 │   ├── scss/                     # Custom SCSS styles
 │   └── views/
-│       ├── admin/                # Admin module views (users, roles, tickets, queues, backups, directory, database)
-│       ├── auth/                 # Auth & 2FA challenge views
+│       ├── admin/                # audit-logs, directory, feedbacks, notification, permissions, profile, tickets, users
+│       ├── auth/                 # login, register, lockscreen, recoverpw, two-factor-challenge, …
 │       ├── dashboard/            # Admin, Developer, and User dashboard views
-│       ├── errors/               # Custom error pages (503 maintenance, 404, etc.)
-│       └── layouts/              # Layouts & partials (sidebar, topbar, impersonation banner)
+│       ├── errors/               # Custom error pages (401–503, minimal)
+│       └── layouts/              # vertical, auth, error + partials (sidebar, topbar, impersonation banner)
 ├── routes/
-│   ├── web.php                   # Main routes & entry points
-│   ├── api.php                   # Sanctum API routes
-│   ├── auth.php                  # Auth, 2FA, & Lark SSO routes
+│   ├── web.php                   # Root & web entry points (loads auth/admin/user partials)
+│   ├── api.php                   # Sanctum API route (api.user)
+│   ├── auth.php                  # Register, password reset, lockscreen, Lark SSO
 │   └── partials/
-│       ├── admin.php             # Admin & Developer protected routes
-│       └── user.php              # Authenticated user routes
+│       ├── admin.php             # Admin routes (permission middleware)
+│       └── user.php              # Authenticated user routes (profile, tickets)
 ├── docker-compose.yml            # Development Docker setup (MySQL 8.0, MinIO, App, Nginx)
 ├── docker-compose.prod.yml       # Production Docker setup
 └── .env.docker.example           # Docker environment template
@@ -269,23 +254,9 @@ silva-kit-new/
 
 ---
 
-## 🔄 Last Update
+## 🔄 Where is everything routed?
 
-**Date:** 26 July 2026
-
-### ✨ What's New
-- ✅ **Database Management Tools** — Database table inspector, table cleaner/reset tools, and developer seeding triggers (`/admin/database`).
-- ✅ **User Impersonation** — Admin feature to switch views into any user context with top notification warning banner and quick exit control.
-- ✅ **Role Locking Protection** — Security enhancement to lock critical system roles (e.g. Developer, Admin) against unauthorized deletion.
-- ✅ **Multi-Role Dashboards** — Tailored dashboards for Admin, Developer, and User roles featuring system diagnostics, environment stats, and quick links.
-- ✅ **Support Ticket System** — Complete ticketing portal for users to submit issues and for admins/developers to reply and manage resolution workflow.
-- ✅ **Queue Manager & Worker Monitor** — Failed jobs viewer, manual retry trigger, and queue purge utilities (`/admin/queues`).
-- ✅ **Directory & File Storage Manager** — File manager tool supporting uploads, folder management, downloads, and storage usage stats (`/admin/directory`).
-- ✅ **System Branding & WebSocket Settings** — Panel tools for dynamic app title/logo/favicon configuration and real-time WebSocket connection testing (`/admin/settings`).
-- ✅ **Notification Blaster** — Send targeted broadcast notification messages to all users or specific role groups.
-- ✅ **Docker Ready (Dev & Prod)** — Complete containerized stack using PHP 8.2-FPM, Nginx, MySQL 8.0, and MinIO S3 Object Storage.
-- ✅ **Two-Factor Authentication (2FA) & Lark SSO** — TOTP authenticator setup with QR codes and recovery codes, plus single sign-on via Lark accounts.
-- ✅ **Sanctum API Engine & Swagger Docs** — Personal Access Token manager with auto-generated OpenAPI REST docs at `/api/documentation`.
+Full route inventory (non-vendor) is generated with `php artisan route:list`. Routes always take precedence over this README — for an authoritative setup, see [`docs/SSOT.md`](docs/SSOT.md).
 
 ---
 
