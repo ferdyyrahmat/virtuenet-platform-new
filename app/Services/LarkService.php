@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -42,30 +41,6 @@ class LarkService
         $this->throwIfLarkFailed($response);
 
         return $response['data'];
-    }
-
-    public function tenantAccessToken(): string
-    {
-        $this->ensureConfigured();
-
-        if ($token = Cache::get('lark.tenant_access_token')) {
-            return $token;
-        }
-
-        $response = $this->client()
-            ->post('/open-apis/auth/v3/tenant_access_token/internal', [
-                'app_id' => config('services.lark.app_id'),
-                'app_secret' => config('services.lark.app_secret'),
-            ])
-            ->throw()
-            ->json();
-
-        $this->throwIfLarkFailed($response);
-
-        $token = $response['tenant_access_token'];
-        Cache::put('lark.tenant_access_token', $token, now()->addSeconds(max(60, ($response['expire'] ?? 7200) - 60)));
-
-        return $token;
     }
 
     public function client(): PendingRequest

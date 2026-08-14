@@ -55,10 +55,10 @@ class UserTicketController extends Controller
 
         $ticket = Ticket::create([
             'ticket_code' => $ticketCode,
-            'user_id'     => $user?->id,
-            'name'        => $user ? $user->name : ($request->name ?? 'Guest User'),
-            'email'       => $user ? $user->email : ($request->email ?? 'guest@example.com'),
-            'phone'       => $user ? $user->phone : $request->phone,
+            'user_id'     => $user->id,
+            'name'        => $user->name,
+            'email'       => $user->email,
+            'phone'       => $user->phone,
             'subject'     => $request->subject,
             'category'    => $request->category,
             'priority'    => $request->priority ?? 'medium',

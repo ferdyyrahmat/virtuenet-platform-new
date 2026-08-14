@@ -104,7 +104,7 @@ When running `php artisan db:seed` (or `RoleAndUserSeeder`), the system creates 
 - Standard Login, Register, Password Reset, and Logout.
 - **Lock Screen**: Session-based lock screen requiring user password/PIN unlock.
 - **Two-Factor Authentication (2FA)**: TOTP Authenticator apps (Google Authenticator, Authy) with SVG QR code setup and emergency recovery codes.
-- **Socialite OAuth Login**: Seamless login with Google and GitHub accounts out-of-the-box.
+- **Lark SSO Login**: Seamless single sign-on with Lark accounts (domain allowlist via `LARK_ALLOWED_DOMAINS`).
 
 ### 🎭 User Impersonation System
 - Administrators can impersonate any registered user to inspect the system from their perspective.
@@ -195,7 +195,7 @@ silva-kit-new/
 │   ├── Http/
 │   │   ├── Controllers/
 │   │   │   ├── Api/              # REST API & Swagger Controllers
-│   │   │   ├── Auth/             # Login, Register, Lockscreen, 2FA, Socialite, Impersonation
+│   │   │   ├── Auth/             # Login, Register, Lockscreen, 2FA, Lark SSO, Impersonation
 │   │   │   ├── Dashboard/        # Role-based Dashboard controller
 │   │   │   ├── System/           # Admin system modules
 │   │   │   │   ├── AuditLog/     # Audit Trail controller
@@ -236,7 +236,7 @@ silva-kit-new/
 │       └── TwoFactorService.php
 ├── database/
 │   ├── migrations/
-│   └── seeders/                  # DatabaseSeeder, RoleAndUserSeeder, UserSeeder, AdminSeeder
+│   └── seeders/                  # DatabaseSeeder, RoleAndUserSeeder
 ├── docker/
 │   ├── nginx/                    # Development & Production Nginx configurations
 │   ├── php/                      # Production OPcache configuration
@@ -258,7 +258,7 @@ silva-kit-new/
 ├── routes/
 │   ├── web.php                   # Main routes & entry points
 │   ├── api.php                   # Sanctum API routes
-│   ├── auth.php                  # Auth, 2FA, & Socialite OAuth routes
+│   ├── auth.php                  # Auth, 2FA, & Lark SSO routes
 │   └── partials/
 │       ├── admin.php             # Admin & Developer protected routes
 │       └── user.php              # Authenticated user routes
@@ -284,7 +284,7 @@ silva-kit-new/
 - ✅ **System Branding & WebSocket Settings** — Panel tools for dynamic app title/logo/favicon configuration and real-time WebSocket connection testing (`/admin/settings`).
 - ✅ **Notification Blaster** — Send targeted broadcast notification messages to all users or specific role groups.
 - ✅ **Docker Ready (Dev & Prod)** — Complete containerized stack using PHP 8.2-FPM, Nginx, MySQL 8.0, and MinIO S3 Object Storage.
-- ✅ **Two-Factor Authentication (2FA) & Socialite** — TOTP authenticator setup with QR codes, recovery codes, and Google/GitHub OAuth integration.
+- ✅ **Two-Factor Authentication (2FA) & Lark SSO** — TOTP authenticator setup with QR codes and recovery codes, plus single sign-on via Lark accounts.
 - ✅ **Sanctum API Engine & Swagger Docs** — Personal Access Token manager with auto-generated OpenAPI REST docs at `/api/documentation`.
 
 ---

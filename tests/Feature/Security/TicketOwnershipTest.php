@@ -63,6 +63,25 @@ class TicketOwnershipTest extends TestCase
         $this->assertDatabaseMissing('ticket_replies', ['ticket_id' => $ticket->id]);
     }
 
+    public function test_authenticated_user_store_binds_ticket_to_own_account(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post(route('v1.tickets.store'), [
+                'subject'     => 'My subject',
+                'category'    => 'bug',
+                'description' => 'My description',
+            ])
+            ->assertJson(['success' => true]);
+
+        $this->assertDatabaseHas('tickets', [
+            'user_id' => $user->id,
+            'name'    => $user->name,
+            'email'   => $user->email,
+        ]);
+    }
+
     public function test_owner_can_reply_to_own_ticket(): void
     {
         $owner = User::factory()->create();

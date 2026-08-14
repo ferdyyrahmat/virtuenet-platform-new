@@ -46,9 +46,9 @@ class FeedbackController extends Controller
         $user = Auth::user();
 
         $feedback = Feedback::create([
-            'user_id'  => $user?->id,
-            'name'     => $user ? $user->name : ($request->name ?? 'Guest User'),
-            'email'    => $user ? $user->email : ($request->email ?? 'guest@example.com'),
+            'user_id'  => $user->id,
+            'name'     => $user->name,
+            'email'    => $user->email,
             'subject'  => $request->subject,
             'category' => $request->category,
             'message'  => $request->message,

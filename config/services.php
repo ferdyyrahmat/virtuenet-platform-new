@@ -43,10 +43,6 @@ return [
         'accounts_url' => env('LARK_ACCOUNTS_URL', 'https://accounts.larksuite.com'),
         'scope' => env('LARK_OAUTH_SCOPE', 'auth:user.id:read contact:user.email:readonly'),
         'allowed_domains' => env('LARK_ALLOWED_DOMAINS'),
-        'verification_token' => env('LARK_VERIFICATION_TOKEN'),
-        'encrypt_key' => env('LARK_ENCRYPT_KEY'),
-        'bot_name' => env('LARK_BOT_NAME'),
-        'default_group_prefix' => env('LARK_DEFAULT_GROUP_PREFIX'),
     ],
 
 ];
