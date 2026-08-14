@@ -9,6 +9,7 @@ use App\Models\TicketReply;
 use App\Services\TicketNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Yajra\DataTables\Facades\DataTables;
 
 class TicketController extends Controller
 {
@@ -21,22 +22,75 @@ class TicketController extends Controller
 
     public function index(Request $request)
     {
-        $query = Ticket::with(['user', 'assignedDeveloper'])->orderBy('created_at', 'desc');
+        if ($request->ajax() || $request->wantsJson()) {
+            $query = Ticket::query()->with(['user', 'assignedDeveloper']);
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->filled('category')) {
+                $query->where('category', $request->category);
+            }
+
+            if ($request->filled('priority')) {
+                $query->where('priority', $request->priority);
+            }
+
+            return DataTables::of($query->orderBy('created_at', 'desc'))
+                ->editColumn('ticket_code', function ($ticket) {
+                    return '<a href="' . route('admin.tickets.show', $ticket->id) . '" class="fw-bold font-monospace text-primary">#' . e($ticket->ticket_code) . '</a>';
+                })
+                ->addColumn('user', function ($ticket) {
+                    return '<div class="fw-semibold text-dark">' . e($ticket->name) . '</div><small class="text-muted">' . e($ticket->email) . '</small>';
+                })
+                ->addColumn('subject_category', function ($ticket) {
+                    $catClass = match ($ticket->category) {
+                        'bug' => 'danger',
+                        'server_issue' => 'warning',
+                        'feature_request' => 'info',
+                        default => 'secondary',
+                    };
+
+                    return '<span class="badge bg-' . $catClass . '-subtle text-' . $catClass . ' font-monospace text-uppercase me-1">' . str_replace('_', ' ', $ticket->category) . '</span><span class="fw-semibold text-dark">' . e($ticket->subject) . '</span>';
+                })
+                ->editColumn('priority', function ($ticket) {
+                    $prioClass = match ($ticket->priority) {
+                        'urgent' => 'danger',
+                        'high' => 'warning',
+                        'medium' => 'info',
+                        default => 'secondary',
+                    };
+
+                    return '<span class="badge bg-' . $prioClass . ' text-white text-uppercase fs-11">' . $ticket->priority . '</span>';
+                })
+                ->addColumn('assigned_dev', function ($ticket) {
+                    if ($ticket->assignedDeveloper) {
+                        return '<span class="badge bg-info-subtle text-info fw-semibold"><i class="mdi mdi-account-code me-1"></i>' . e($ticket->assignedDeveloper->name) . '</span>';
+                    }
+
+                    return '<span class="badge bg-secondary-subtle text-muted fs-11">' . e(__('messages.unassigned')) . '</span>';
+                })
+                ->editColumn('status', function ($ticket) {
+                    $stClass = match ($ticket->status) {
+                        'resolved' => 'success',
+                        'in_progress' => 'primary',
+                        'waiting_user' => 'info',
+                        'closed' => 'secondary',
+                        default => 'danger',
+                    };
+
+                    return '<span class="badge bg-' . $stClass . '-subtle text-' . $stClass . ' fw-bold text-uppercase">' . str_replace('_', ' ', $ticket->status) . '</span>';
+                })
+                ->editColumn('created_at', function ($ticket) {
+                    return $ticket->created_at ? $ticket->created_at->format('Y-m-d H:i') : '-';
+                })
+                ->addColumn('actions', function ($ticket) {
+                    return '<div class="text-end"><a href="' . route('admin.tickets.show', $ticket->id) . '" class="btn btn-outline-primary btn-xs me-1"><i class="mdi mdi-eye-outline me-1"></i>' . e(__('messages.view_thread')) . '</a><button type="button" class="btn btn-outline-danger btn-xs" onclick="deleteTicket(' . $ticket->id . ', \'' . $ticket->ticket_code . '\')"><i class="mdi mdi-trash-can-outline"></i></button></div>';
+                })
+                ->rawColumns(['ticket_code', 'user', 'subject_category', 'priority', 'assigned_dev', 'status', 'actions'])
+                ->make(true);
         }
-
-        if ($request->filled('category')) {
-            $query->where('category', $request->category);
-        }
-
-        if ($request->filled('priority')) {
-            $query->where('priority', $request->priority);
-        }
-
-        $tickets = $query->get();
-        $developers = Developer::where('is_active', true)->get();
 
         $stats = [
             'total'       => Ticket::count(),
@@ -45,7 +99,7 @@ class TicketController extends Controller
             'resolved'    => Ticket::where('status', 'resolved')->count(),
         ];
 
-        return view('admin.tickets.index', compact('tickets', 'developers', 'stats'));
+        return view('admin.tickets.index', compact('stats'));
     }
 
     public function show(string $id)

@@ -1,5 +1,12 @@
 @extends('layouts.vertical', ['title' => __('messages.manage_support_tickets')])
 
+@section('css')
+    @vite([
+        'node_modules/datatables.net-bs5/css/dataTables.bootstrap5.min.css',
+        'node_modules/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css'
+    ])
+@endsection
+
 @section('content')
 <div class="container-fluid">
     <div class="py-3 d-flex align-items-sm-center flex-sm-row flex-column">
@@ -121,104 +128,23 @@
                     </div>
                 </div>
 
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 fs-13">
-                            <thead class="table-light">
-                                <tr>
-                                    <th class="ps-3">{{ __('messages.ticket_code') }}</th>
-                                    <th>{{ __('messages.ticket_user') }}</th>
-                                    <th>{{ __('messages.subject') }} / {{ __('messages.category') }}</th>
-                                    <th>{{ __('messages.priority') }}</th>
-                                    <th>{{ __('messages.assigned_dev') }}</th>
-                                    <th>{{ __('messages.status') }}</th>
-                                    <th>{{ __('messages.created_at') }}</th>
-                                    <th class="text-end pe-3">{{ __('messages.actions') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($tickets as $t)
-                                    <tr>
-                                        <td class="ps-3">
-                                            <a href="{{ route('admin.tickets.show', $t->id) }}" class="fw-bold font-monospace text-primary">
-                                                #{{ $t->ticket_code }}
-                                            </a>
-                                        </td>
-                                        <td>
-                                            <div class="fw-semibold text-dark">{{ $t->name }}</div>
-                                            <small class="text-muted">{{ $t->email }}</small>
-                                        </td>
-                                        <td>
-                                            @php
-                                                $catClass = match($t->category) {
-                                                    'bug' => 'danger',
-                                                    'server_issue' => 'warning',
-                                                    'feature_request' => 'info',
-                                                    default => 'secondary'
-                                                };
-                                            @endphp
-                                            <span class="badge bg-{{ $catClass }}-subtle text-{{ $catClass }} font-monospace text-uppercase me-1">
-                                                {{ str_replace('_', ' ', $t->category) }}
-                                            </span>
-                                            <span class="fw-semibold text-dark">{{ $t->subject }}</span>
-                                        </td>
-                                        <td>
-                                            @php
-                                                $prioBadge = match($t->priority) {
-                                                    'urgent' => 'danger',
-                                                    'high' => 'warning',
-                                                    'medium' => 'info',
-                                                    default => 'secondary'
-                                                };
-                                            @endphp
-                                            <span class="badge bg-{{ $prioBadge }} text-white text-uppercase fs-11">
-                                                {{ $t->priority }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            @if($t->assignedDeveloper)
-                                                <span class="badge bg-info-subtle text-info fw-semibold">
-                                                    <i class="mdi mdi-account-code me-1"></i>{{ $t->assignedDeveloper->name }}
-                                                </span>
-                                            @else
-                                                <span class="badge bg-secondary-subtle text-muted fs-11">{{ __('messages.unassigned') }}</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @php
-                                                $stBadge = match($t->status) {
-                                                    'resolved' => 'success',
-                                                    'in_progress' => 'primary',
-                                                    'waiting_user' => 'info',
-                                                    'closed' => 'secondary',
-                                                    default => 'danger'
-                                                };
-                                            @endphp
-                                            <span class="badge bg-{{ $stBadge }}-subtle text-{{ $stBadge }} fw-bold text-uppercase">
-                                                {{ str_replace('_', ' ', $t->status) }}
-                                            </span>
-                                        </td>
-                                        <td class="text-muted fs-12">{{ $t->created_at->format('Y-m-d H:i') }}</td>
-                                        <td class="text-end pe-3">
-                                            <a href="{{ route('admin.tickets.show', $t->id) }}" class="btn btn-outline-primary btn-xs me-1">
-                                                <i class="mdi mdi-eye-outline me-1"></i>{{ __('messages.view_thread') }}
-                                            </a>
-                                            <button type="button" class="btn btn-outline-danger btn-xs" onclick="deleteTicket({{ $t->id }}, '{{ $t->ticket_code }}')">
-                                                <i class="mdi mdi-trash-can-outline"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="8" class="text-center py-5 text-muted">
-                                            <i class="mdi mdi-ticket-outline fs-36 text-muted d-block mb-2"></i>
-                                            <p class="mb-0 fw-semibold text-dark">{{ __('messages.no_tickets') }}</p>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="card-body">
+                    <table id="tickets-datatable" class="table table-hover align-middle mb-0 fs-13 w-100">
+                        <thead class="table-light">
+                            <tr>
+                                <th>{{ __('messages.ticket_code') }}</th>
+                                <th>{{ __('messages.ticket_user') }}</th>
+                                <th>{{ __('messages.subject') }} / {{ __('messages.category') }}</th>
+                                <th>{{ __('messages.priority') }}</th>
+                                <th>{{ __('messages.assigned_dev') }}</th>
+                                <th>{{ __('messages.status') }}</th>
+                                <th>{{ __('messages.created_at') }}</th>
+                                <th class="text-end">{{ __('messages.actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -227,32 +153,64 @@
 @endsection
 
 @section('script-bottom')
-<script>
-    function deleteTicket(id, code) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: '{{ __("messages.confirm_delete") }}',
-                text: '#' + code,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                confirmButtonText: '{{ __("messages.yes_delete") }}',
-                cancelButtonText: '{{ __("messages.cancel") }}'
-            }).then((res) => {
-                if (res.isConfirmed) {
-                    $.ajax({
-                        url: '/admin/tickets/' + id,
-                        type: 'DELETE',
-                        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                        success: function(resp) {
-                            Swal.fire('Deleted!', resp.message, 'success').then(() => {
-                                window.location.href = resp.redirect || window.location.href;
-                            });
-                        }
-                    });
+    @vite([
+        'resources/js/pages/datatable.init.js'
+    ])
+
+    <script>
+        $(document).ready(function() {
+            var table = $('#tickets-datatable').DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: "{{ route('admin.tickets.index') }}",
+                    type: "GET",
+                    data: function(d) {
+                        d.status = $('select[name="status"]').val();
+                    }
+                },
+                columns: [
+                    { data: 'ticket_code', name: 'ticket_code' },
+                    { data: 'user', name: 'user', orderable: false, searchable: false },
+                    { data: 'subject_category', name: 'subject', orderable: true, searchable: false },
+                    { data: 'priority', name: 'priority' },
+                    { data: 'assigned_dev', name: 'assigned_dev', orderable: false, searchable: false },
+                    { data: 'status', name: 'status' },
+                    { data: 'created_at', name: 'created_at' },
+                    { data: 'actions', name: 'actions', orderable: false, searchable: false }
+                ],
+                drawCallback: function() {
+                    $("#tickets-datatable_length select").addClass('form-select form-select-sm');
+                    $(".dataTables_length label").addClass('form-label');
                 }
             });
+        });
+
+        function deleteTicket(id, code) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: '{{ __("messages.confirm_delete") }}',
+                    text: '#' + code,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    confirmButtonText: '{{ __("messages.yes_delete") }}',
+                    cancelButtonText: '{{ __("messages.cancel") }}'
+                }).then((res) => {
+                    if (res.isConfirmed) {
+                        $.ajax({
+                            url: '/admin/tickets/' + id,
+                            type: 'DELETE',
+                            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                            success: function(resp) {
+                                Swal.fire('Deleted!', resp.message, 'success').then(() => {
+                                    $('#tickets-datatable').DataTable().ajax.reload();
+                                });
+                            }
+                        });
+                    }
+                });
+            }
         }
-    }
-</script>
+    </script>
 @endsection

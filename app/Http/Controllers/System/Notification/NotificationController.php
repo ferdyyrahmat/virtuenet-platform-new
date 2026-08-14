@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\System\Notification;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendNotificationBlastJob;
 use App\Models\NotificationBlast;
 use App\Models\Role;
-use App\Models\SystemNotification;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,22 +41,11 @@ class NotificationController extends Controller
             $request->validate(['target_id' => ['required', 'exists:users,id']]);
         }
 
-        $users = match ($validated['target_type']) {
-            'role' => User::whereHas('roles', fn ($query) => $query->whereKey($validated['target_id']))->get(),
-            'user' => User::whereKey($validated['target_id'])->get(),
-            default => User::all(),
+        $userIds = match ($validated['target_type']) {
+            'role' => User::whereHas('roles', fn ($query) => $query->whereKey($validated['target_id']))->pluck('id')->all(),
+            'user' => User::whereKey($validated['target_id'])->pluck('id')->all(),
+            default => User::pluck('id')->all(),
         };
-
-        foreach ($users as $user) {
-            SystemNotification::send(
-                $user,
-                $validated['title'],
-                $validated['message'],
-                $validated['type'],
-                'mdi-bell-outline',
-                $validated['url'] ?? null,
-            );
-        }
 
         $blast = NotificationBlast::create([
             'title' => $validated['title'],
@@ -65,17 +54,19 @@ class NotificationController extends Controller
             'target_type' => $validated['target_type'],
             'target_id' => $validated['target_id'] ?? null,
             'type' => $validated['type'],
-            'status' => 'sent',
-            'sent_count' => $users->count(),
+            'status' => 'queued',
+            'sent_count' => 0,
             'failed_count' => 0,
             'created_by' => Auth::id(),
         ]);
 
-        audit_log("Dispatched in-app notification blast #{$blast->id}", 'create', 'notification');
+        SendNotificationBlastJob::dispatch($blast->id, $userIds);
+
+        audit_log("Queued in-app notification blast #{$blast->id}", 'create', 'notification');
 
         return response()->json([
             'success' => true,
-            'message' => "In-app notification sent to {$users->count()} user(s).",
+            'message' => "In-app notification blast queued for " . count($userIds) . " user(s).",
             'redirect' => route('admin.notifications.index'),
         ]);
     }
