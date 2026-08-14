@@ -15,6 +15,7 @@ return [
     'maintenance'        => 'Pemeliharaan Sistem',
     'audit_trail'        => 'Jejak Audit',
     'notification_blast' => 'Pesan Notifikasi Blast',
+    'feedbacks'          => 'Umpan Balik Pengguna',
     'backups'            => 'Cadangan Sistem',
     'api_docs'           => 'Dokumentasi API',
     'my_account'         => 'Akun Saya',

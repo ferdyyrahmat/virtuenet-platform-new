@@ -45,6 +45,17 @@ Route::prefix('admin')->name('admin.')->middleware('auth')->group(function () {
             ->middleware('permission:admin.audit-logs.index')->name('index');
     });
 
+    Route::prefix('feedbacks')->name('feedbacks.')->group(function () {
+        Route::get('', [App\Http\Controllers\System\Feedback\FeedbackController::class, 'index'])
+            ->middleware('permission:admin.feedbacks.index')->name('index');
+        Route::post('store', [App\Http\Controllers\System\Feedback\FeedbackController::class, 'store'])
+            ->middleware('permission:admin.feedbacks.store')->name('store');
+        Route::put('{id}/status', [App\Http\Controllers\System\Feedback\FeedbackController::class, 'updateStatus'])
+            ->middleware('permission:admin.feedbacks.update-status')->name('update-status');
+        Route::delete('{id}', [App\Http\Controllers\System\Feedback\FeedbackController::class, 'destroy'])
+            ->middleware('permission:admin.feedbacks.destroy')->name('destroy');
+    });
+
     Route::prefix('tickets')->name('tickets.')->group(function () {
         Route::get('', [App\Http\Controllers\System\Ticket\TicketController::class, 'index'])
             ->middleware('permission:admin.tickets.index')->name('index');

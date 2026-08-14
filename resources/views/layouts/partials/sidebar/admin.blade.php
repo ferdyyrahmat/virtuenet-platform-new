@@ -13,8 +13,8 @@
     // Group visibility checks
     $showAccessControl = $canAccess('admin.permissions.index') || $canAccess('admin.users.index');
     $showOperations = $canAccess('admin.audit-logs.index') || $user?->isAdmin();
-    $showCommunication = $canAccess('admin.tickets.index') || $canAccess('admin.notifications.index');
-    $showInfrastructure = $canAccess('admin.directory.index') || $user?->isAdmin();
+    $showCommunication = $canAccess('admin.tickets.index') || $canAccess('admin.notifications.index') || $canAccess('admin.feedbacks.index');
+    $showInfrastructure = $canAccess('admin.directory.index');
     $hasAnyAdminAccess = $showAccessControl || $showOperations || $showCommunication || $showInfrastructure;
 
     // Active route detection for auto-expanding the correct submenu
@@ -87,12 +87,12 @@
 {{-- ═══════════════════════════════════════════════════ --}}
 @if($showCommunication)
 <li>
-    <a href="#sidebarCommunication" data-bs-toggle="collapse" aria-expanded="{{ Str::startsWith($currentRoute, 'admin.tickets.') || Str::startsWith($currentRoute, 'admin.notifications.') ? 'true' : 'false' }}" aria-controls="sidebarCommunication">
+    <a href="#sidebarCommunication" data-bs-toggle="collapse" aria-expanded="{{ Str::startsWith($currentRoute, 'admin.tickets.') || Str::startsWith($currentRoute, 'admin.notifications.') || Str::startsWith($currentRoute, 'admin.feedbacks.') ? 'true' : 'false' }}" aria-controls="sidebarCommunication">
         <i data-feather="message-circle"></i>
         <span> {{ __('messages.communication') }} </span>
         <span class="menu-arrow"></span>
     </a>
-    <div class="collapse {{ Str::startsWith($currentRoute, 'admin.tickets.') || Str::startsWith($currentRoute, 'admin.notifications.') ? 'show' : '' }}" id="sidebarCommunication">
+    <div class="collapse {{ Str::startsWith($currentRoute, 'admin.tickets.') || Str::startsWith($currentRoute, 'admin.notifications.') || Str::startsWith($currentRoute, 'admin.feedbacks.') ? 'show' : '' }}" id="sidebarCommunication">
         <ul class="nav-second-level">
             @if($canAccess('admin.tickets.index'))
             <li>
@@ -102,6 +102,11 @@
             @if($canAccess('admin.notifications.index'))
             <li>
                 <a href="{{ route('admin.notifications.index') }}" class="tp-link">{{ __('messages.notification_blast') }}</a>
+            </li>
+            @endif
+            @if($canAccess('admin.feedbacks.index'))
+            <li>
+                <a href="{{ route('admin.feedbacks.index') }}" class="tp-link">{{ __('messages.feedbacks') }}</a>
             </li>
             @endif
         </ul>

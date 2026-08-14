@@ -15,6 +15,7 @@ return [
     'maintenance'        => 'Maintenance',
     'audit_trail'        => 'Audit Trail',
     'notification_blast' => 'Notification Blast',
+    'feedbacks'          => 'User Feedbacks',
     'backups'            => 'System Backups',
     'api_docs'           => 'API Documentation',
     'my_account'         => 'My Account',
