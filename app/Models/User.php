@@ -28,6 +28,7 @@ class User extends Authenticatable
         'title',
         'bio',
         'password',
+        'email_verified_at',
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
@@ -85,7 +86,16 @@ class User extends Authenticatable
 
     public function isAdmin(): bool
     {
-        return $this->hasAnyRole([Role::DEVELOPER, Role::ADMIN, 'Administrator']);
+        return $this->hasAnyRole([Role::DEVELOPER, Role::ADMIN]);
+    }
+
+    public function ticketSenderType(): string
+    {
+        return match (true) {
+            $this->isDeveloper() => 'developer',
+            $this->isAdmin()     => 'admin',
+            default              => 'user',
+        };
     }
 
 }

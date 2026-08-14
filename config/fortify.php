@@ -159,6 +159,13 @@ return [
     | by removing them from this array. You're free to only remove some of
     | these features or you can even remove all of these if you need to.
     |
+    | Registration, password reset, and email verification are intentionally
+    | NOT handled by Fortify. They use the custom controllers wired in
+    | routes/auth.php instead. Password-registered accounts are verified
+    | automatically (email_verified_at set on create), mirroring Lark SSO
+    | accounts which are verified at sign-up, so email verification is not
+    | enforced.
+    |
     */
 
     'features' => [

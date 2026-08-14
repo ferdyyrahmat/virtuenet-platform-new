@@ -91,7 +91,7 @@ class UserTicketController extends Controller
         $reply = TicketReply::create([
             'ticket_id'        => $ticket->id,
             'user_id'          => $user->id,
-            'sender_type'      => 'user',
+            'sender_type'      => $user->ticketSenderType(),
             'sender_name'      => $user ? $user->name : $ticket->name,
             'sender_email'     => $user ? $user->email : $ticket->email,
             'message'          => $request->message,

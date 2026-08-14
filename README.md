@@ -93,7 +93,7 @@ When running `php artisan db:seed` (or `RoleAndUserSeeder`), the system creates 
 | Role | Email | Password | Access Level |
 |------|-------|----------|--------------|
 | **Developer** | `developer@example.com` | `password` | Full system access, developer tools, database manager, queue monitor |
-| **Administrator** | `admin@example.com` | `password` | System administration, user management, tickets, audit logs, settings |
+| **Admin** | `admin@example.com` | `password` | System administration, user management, tickets, audit logs, settings |
 | **User** | `user@example.com` | `password` | Profile management, personal API tokens, support tickets |
 
 ---
@@ -169,7 +169,7 @@ When running `php artisan db:seed` (or `RoleAndUserSeeder`), the system creates 
 
 ### 🛠️ Maintenance Mode
 - Toggle maintenance mode from settings with custom title and message.
-- Automatic bypass for users with the **Administrator** role.
+- Automatic bypass for users with the **Admin** role.
 - Dynamic persistence using `system_settings` table.
 
 ### 📊 System Health Monitor Widget

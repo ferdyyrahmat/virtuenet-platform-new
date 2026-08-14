@@ -70,7 +70,7 @@ class TicketController extends Controller
         $reply = TicketReply::create([
             'ticket_id'        => $ticket->id,
             'user_id'          => $user->id,
-            'sender_type'      => 'developer',
+            'sender_type'      => $user->ticketSenderType(),
             'sender_name'      => $user->name,
             'sender_email'     => $user->email,
             'message'          => $request->message,
